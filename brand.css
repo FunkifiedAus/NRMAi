@@ -1,34 +1,43 @@
 /* ════════════════════════════════════════════════════════════════
-   NRMAi · Order Portal — brand theme overlay
-   Drop this file in alongside index.html and add ONE line to
-   <head>:   <link rel="stylesheet" href="./brand.css" />
-   This file overrides the base palette, swaps the text logo for
-   the supplied SVG, and warms up the look-and-feel to match the
-   NRMAi AHC mark (cream #f7f1ea on a deep warm-dark background).
+   NRMAi · Order Portal — brand theme overlay v3
+   Palette pulled directly from the NRMAi / NRMA Insurance
+   Brand Identity Guidelines (Feb 2025).
+     Primary:   A Help Company™ Blue   #010C66   (PMS 2748)
+     Primary:   Warm White             #F7F1EA   (PMS Warm Grey 01 55%)
+     Blue 60%:  #676DA3                Blue 40%: #999EC2
+     Blue 20%:  #CCCEE0                Blue 10%: #E6E7F0
+   Approved AAA combo used throughout: Warm White bg / Blue fg.
+   !important is used on :root variables so this file wins
+   regardless of where the <link> sits relative to <style>.
    ════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Core palette — warm dark, cream accents */
-  --bg:      #0c1116;        /* deep warm dark */
-  --panel:   #161c23;        /* card background */
-  --panel2:  #1f262f;        /* input / secondary surface */
-  --line:    #2a323d;        /* dividers */
-  --text:    #f7f1ea;        /* NRMAi cream — primary text */
-  --muted:   #9ba4af;        /* muted secondary text */
-  --accent:  #f7f1ea;        /* CTA fill (cream) */
-  --accent2: #d8c9b3;        /* hover / soft cream */
-  --danger:  #ff6b6b;
-  --ok:      #5fd3a4;
+  --bg:      #F7F1EA !important;   /* Warm White */
+  --panel:   #FFFFFF !important;   /* Standard White card */
+  --panel2:  #E6E7F0 !important;   /* Blue tint 04 — input surfaces */
+  --line:    #CCCEE0 !important;   /* Blue tint 03 — dividers */
+  --text:    #010C66 !important;   /* A Help Company™ Blue */
+  --muted:   #676DA3 !important;   /* Blue tint 01 — secondary text */
+  --accent:  #010C66 !important;   /* Blue CTAs */
+  --accent2: #20298A !important;   /* Blue hover */
+  --danger:  #B00020 !important;   /* Accessible red for required-field only */
+  --ok:      #010C66 !important;   /* Success state uses brand blue, not green */
 }
 
-/* ── Typography ─────────────────────────────── */
+/* ── Global ─────────────────────────────────── */
+html, body {
+  background: #F7F1EA;
+  color: #010C66;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 body { letter-spacing: .005em; }
-h1, h2 { letter-spacing: -.01em; font-weight: 600; }
+h1, h2 { letter-spacing: -.01em; font-weight: 600; color: #010C66; }
 
-/* ── Topbar with NRMAi logo ─────────────────── */
+/* ── Topbar ────────────────────────────────── */
 header.topbar {
-  background: rgba(12, 17, 22, .92);
-  border-bottom: 1px solid var(--line);
+  background: rgba(247, 241, 234, .92) !important;
+  border-bottom: 1px solid #CCCEE0;
   padding: 14px 18px;
 }
 header.topbar .logo {
@@ -42,66 +51,74 @@ header.topbar .logo {
 }
 header.topbar .logo span { display: none; }
 
-/* Cart pill — invert to cream-on-dark */
 header.topbar #btn-cart {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--text);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
+  color: #010C66;
   padding: 9px 14px 9px 16px;
   letter-spacing: .04em;
   text-transform: uppercase;
   font-size: 11px;
+  font-weight: 600;
 }
+header.topbar #btn-cart:hover { border-color: #010C66; }
 header.topbar #btn-cart .pill {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
 }
 
-/* ── Passcode gate ──────────────────────────── */
+/* ── Passcode gate ─────────────────────────── */
 .gate {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
   border-radius: 18px;
   padding: 32px 28px 28px;
-  position: relative;
+  box-shadow: 0 2px 12px rgba(1, 12, 102, .04);
 }
-/* Drop the NRMAi logo above the H1 inside the gate, via :before */
 .gate::before {
   content: '';
   display: block;
-  width: 180px;
-  height: 56px;
-  margin: 0 auto 18px;
+  width: 200px;
+  height: 60px;
+  margin: 0 auto 20px;
   background: url('./logo.svg') no-repeat center;
   background-size: contain;
 }
 .gate h1 {
   text-align: center;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: .02em;
-  color: var(--muted);
+  color: #676DA3;
   margin: 0 0 4px;
 }
 .gate p.sub {
   text-align: center;
   font-size: 13px;
+  color: #676DA3;
   margin: 0 0 18px;
 }
-.gate label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.gate label {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #676DA3;
+  font-weight: 600;
+}
 .gate input {
-  background: var(--panel2);
-  border: 1px solid var(--line);
+  background: #F7F1EA;
+  border: 1px solid #CCCEE0;
+  color: #010C66;
   border-radius: 10px;
   padding: 14px 16px;
   font-size: 15px;
   letter-spacing: .25em;
   text-align: center;
 }
-.gate input:focus { outline: none; border-color: var(--accent); }
+.gate input:focus { outline: none; border-color: #010C66; }
 .gate button.primary {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
   border-radius: 999px;
   padding: 14px;
   font-weight: 600;
@@ -111,51 +128,68 @@ header.topbar #btn-cart .pill {
   margin-top: 18px;
   transition: background .15s ease;
 }
-.gate button.primary:hover { background: var(--accent2); }
+.gate button.primary:hover { background: #20298A; }
+.gate .err { color: #B00020; }
 
-/* ── Search bar ─────────────────────────────── */
+/* ── Search bar ────────────────────────────── */
+.search-row {
+  background: #F7F1EA !important;
+}
 .search-row input {
-  background: var(--panel2);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
+  color: #010C66;
   border-radius: 10px;
   padding: 13px 16px;
   font-size: 14px;
 }
-.search-row input:focus { outline: none; border-color: var(--accent); }
+.search-row input::placeholder { color: #999EC2; }
+.search-row input:focus { outline: none; border-color: #010C66; }
 .search-row .count {
   font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #676DA3;
 }
 
-/* ── Catalogue cards ────────────────────────── */
+/* ── Catalogue cards ───────────────────────── */
 .card {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
   border-radius: 14px;
-  transition: transform .15s ease, border-color .15s ease;
+  overflow: hidden;
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
 }
-.card:hover { border-color: #3a4452; }
-.card .thumb { background-color: #0c1116; }
+.card:hover {
+  border-color: #010C66;
+  box-shadow: 0 2px 8px rgba(1, 12, 102, .06);
+}
+.card .thumb {
+  background-color: #E6E7F0;
+  color: #676DA3;
+}
 .card .name {
   font-weight: 500;
   font-size: 14px;
-  color: var(--text);
+  color: #010C66;
 }
 .card .meta {
   font-size: 10px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #676DA3;
 }
-.card .avail { font-size: 12px; font-weight: 500; }
-.card .avail.low  { color: #f0c674; }
-.card .avail.zero { color: var(--danger); }
+.card .avail {
+  font-size: 12px;
+  font-weight: 500;
+  color: #676DA3;
+}
+.card .avail.low  { color: #B87500; }
+.card .avail.zero { color: #B00020; }
 
 .card .add {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
   font-weight: 600;
   letter-spacing: .04em;
   text-transform: uppercase;
@@ -164,79 +198,109 @@ header.topbar #btn-cart .pill {
   border-radius: 999px;
   transition: background .15s ease;
 }
-.card .add:hover { background: var(--accent2); }
-.card .add.in-cart { background: var(--ok); color: #0c1116; }
-.card .add:disabled { background: #3a4452; color: #6b7280; }
-
-.stepper {
-  background: var(--panel2);
-  border: 1px solid var(--line);
+.card .add:hover { background: #20298A; }
+.card .add.in-cart {
+  background: #676DA3;
+  color: #FFFFFF;
 }
-.stepper button { color: var(--text); }
-.stepper input  { color: var(--text); }
+.card .add:disabled {
+  background: #CCCEE0;
+  color: #999EC2;
+}
 
-/* ── Cart drawer ────────────────────────────── */
+/* ── Stepper ──────────────────────────────── */
+.stepper {
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
+}
+.stepper button { color: #010C66; }
+.stepper button:hover { background: #E6E7F0; }
+.stepper input  { color: #010C66; }
+
+/* ── Empty-state ──────────────────────────── */
+.state {
+  background: #FFFFFF;
+  border: 1px dashed #CCCEE0;
+  color: #676DA3;
+}
+
+/* ── Cart drawer ──────────────────────────── */
 .drawer {
-  background: var(--bg);
-  border-left: 1px solid var(--line);
+  background: #F7F1EA !important;
+  border-left: 1px solid #CCCEE0;
 }
 .drawer header {
   padding: 18px 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #CCCEE0;
+  background: #FFFFFF;
 }
 .drawer header h2 {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #010C66;
 }
+.drawer header button.close { color: #676DA3; }
+.drawer header button.close:hover { color: #010C66; }
+
 .cart-item {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
   border-radius: 12px;
   padding: 12px;
 }
-.cart-item .cname { font-weight: 500; }
+.cart-item .cthumb { background-color: #E6E7F0; }
+.cart-item .cname { font-weight: 500; color: #010C66; }
 .cart-item .cmeta {
   font-size: 10px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #676DA3;
 }
+.cart-item .cremove { color: #676DA3; }
+.cart-item .cremove:hover { color: #B00020; }
 
 .form label {
   font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: #676DA3;
+  font-weight: 600;
   margin-top: 14px;
 }
 .form input, .form textarea {
-  background: var(--panel2);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
+  color: #010C66;
   border-radius: 10px;
   padding: 12px 14px;
 }
+.form input::placeholder, .form textarea::placeholder { color: #999EC2; }
 .form input:focus, .form textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: #010C66;
 }
 
 .drawer footer {
-  background: var(--panel);
-  border-top: 1px solid var(--line);
+  background: #FFFFFF;
+  border-top: 1px solid #CCCEE0;
   padding: 14px 18px;
 }
-.drawer footer .total .big { font-size: 16px; font-weight: 500; }
+.drawer footer .total .big {
+  font-size: 16px;
+  font-weight: 600;
+  color: #010C66;
+}
 .drawer footer .total .small {
   font-size: 10px;
   letter-spacing: .06em;
   text-transform: uppercase;
+  color: #676DA3;
 }
 .drawer footer .place {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
   border-radius: 999px;
   padding: 13px 24px;
   font-weight: 600;
@@ -245,38 +309,48 @@ header.topbar #btn-cart .pill {
   font-size: 12px;
   transition: background .15s ease;
 }
-.drawer footer .place:hover { background: var(--accent2); }
-.drawer footer .place:disabled { background: #3a4452; color: #6b7280; }
+.drawer footer .place:hover { background: #20298A; }
+.drawer footer .place:disabled {
+  background: #CCCEE0;
+  color: #999EC2;
+}
 
-/* ── Success screen ─────────────────────────── */
+/* ── Success screen ───────────────────────── */
 .success {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #FFFFFF;
+  border: 1px solid #CCCEE0;
   border-radius: 18px;
   padding: 36px 28px 32px;
+  box-shadow: 0 2px 12px rgba(1, 12, 102, .04);
 }
 .success::before {
   content: '';
   display: block;
-  width: 160px;
-  height: 50px;
+  width: 180px;
+  height: 56px;
   margin: 0 auto 22px;
   background: url('./logo.svg') no-repeat center;
   background-size: contain;
 }
 .success .tick {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
 }
-.success h1 { font-size: 20px; font-weight: 500; }
+.success h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #010C66;
+}
 .success .oid {
   letter-spacing: .12em;
   text-transform: uppercase;
   font-size: 11px;
+  color: #676DA3;
 }
+.success .msg { color: #676DA3; }
 .success button {
-  background: var(--accent);
-  color: #0c1116;
+  background: #010C66;
+  color: #F7F1EA;
   border-radius: 999px;
   padding: 13px 28px;
   font-weight: 600;
@@ -284,19 +358,30 @@ header.topbar #btn-cart .pill {
   text-transform: uppercase;
   font-size: 12px;
 }
-.success button:hover { background: var(--accent2); }
+.success button:hover { background: #20298A; }
 
-/* ── Toast ──────────────────────────────────── */
+/* ── Toast ────────────────────────────────── */
 .toast {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: #010C66;
+  border: 1px solid #010C66;
+  color: #F7F1EA;
   font-size: 12px;
   letter-spacing: .04em;
 }
+.toast.err {
+  background: #B00020;
+  border-color: #B00020;
+  color: #FFFFFF;
+}
 
-/* ── Mobile tweaks ──────────────────────────── */
+/* ── Drawer backdrop ─────────────────────── */
+.drawer-bg {
+  background: rgba(1, 12, 102, .35) !important;
+}
+
+/* ── Mobile tweaks ────────────────────────── */
 @media (max-width: 520px) {
   header.topbar .logo { width: 110px; height: 36px; }
-  .gate::before       { width: 150px; height: 48px; margin-bottom: 14px; }
-  .success::before    { width: 140px; height: 44px; }
+  .gate::before       { width: 160px; height: 50px; margin-bottom: 16px; }
+  .success::before    { width: 150px; height: 46px; }
 }

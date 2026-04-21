@@ -350,7 +350,9 @@
 
   // ── network ──
   async function api(action, body){
-    const payload = Object.assign({ action, client: CLIENT, passcode: state.passcode }, body || {});
+   const fresh = (crypto.randomUUID && crypto.randomUUID()) ||
+      (Date.now() + '-' + Math.random().toString(36).slice(2));
+    const payload = Object.assign({ action, client: CLIENT, passcode: state.passcode, clientId: fresh }, body || {});
     const res = await fetch(ENDPOINT, {
       method:'POST',
       // text/plain avoids a CORS preflight against Apps Script.
@@ -646,7 +648,6 @@
     state.cart.forEach(it => items.push({ name: it.name, qty: it.qty }));
 
     const payload = {
-      clientId: clientId(),
       deliveredBy: $('#f-delivered').value.trim(),
       pickedUpBy:  $('#f-pickup').value.trim(),
       dropoffAddress: dropoff,

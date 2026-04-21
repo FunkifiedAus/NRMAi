@@ -1,0 +1,715 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<title>NRMAi — Order Portal</title>
+<link rel="manifest" href="./manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0a; --panel:#141414; --panel2:#1c1c1c; --line:#2a2a2a;
+    --text:#f4f4f4; --muted:#9a9a9a; --accent:#ff7a18; --accent2:#ffb26b;
+    --danger:#ff4d4d; --ok:#3ddc84;
+    --radius:14px; --gap:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif}
+  body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+  button{font-family:inherit}
+  input,textarea,select{font-family:inherit}
+  .hidden{display:none!important}
+
+  /* ── Layout ── */
+  header.topbar{
+    position:sticky;top:0;z-index:30;background:rgba(10,10,10,.92);
+    backdrop-filter:blur(8px);border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:12px;
+  }
+  .logo{font-weight:700;font-size:18px;letter-spacing:.3px}
+  .logo span{color:var(--accent)}
+  .topbar .grow{flex:1}
+  .topbar button{
+    background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .topbar button .pill{
+    background:var(--accent);color:#0a0a0a;border-radius:999px;font-size:11px;
+    padding:2px 7px;font-weight:700;min-width:20px;text-align:center;
+  }
+
+  main{padding:16px;max-width:960px;margin:0 auto}
+  h1{font-size:22px;margin:4px 0 14px}
+  p.sub{color:var(--muted);margin:0 0 16px;font-size:14px}
+
+  /* ── Screens ── */
+  .screen{display:none}
+  .screen.active{display:block}
+
+  /* ── Passcode ── */
+  .gate{
+    max-width:380px;margin:10vh auto 0;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);padding:24px;
+  }
+  .gate h1{margin-top:0}
+  .gate label{display:block;color:var(--muted);font-size:13px;margin:10px 0 4px}
+  .gate input{
+    width:100%;padding:12px 14px;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;font-size:16px;
+  }
+  .gate button.primary{
+    width:100%;margin-top:14px;padding:14px;border:none;border-radius:10px;
+    background:var(--accent);color:#0a0a0a;font-weight:700;font-size:15px;cursor:pointer;
+  }
+  .gate .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+
+  /* ── Search ── */
+  .search-row{
+    display:flex;gap:10px;align-items:center;margin:0 0 14px;position:sticky;top:57px;
+    background:var(--bg);padding:8px 0;z-index:10;
+  }
+  .search-row input{
+    flex:1;padding:12px 14px;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;font-size:15px;
+  }
+  .search-row .count{color:var(--muted);font-size:13px;white-space:nowrap}
+
+  /* ── Catalogue grid ── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:var(--gap)}
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;display:flex;flex-direction:column;
+  }
+  .card .thumb{
+    aspect-ratio:1/1;background:var(--panel2) center/cover no-repeat;
+    display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;
+  }
+  .card .thumb.empty::before{content:'No photo'}
+  .card .body{padding:10px 12px;display:flex;flex-direction:column;gap:6px;flex:1}
+  .card .name{font-weight:600;font-size:14px;line-height:1.3;min-height:36px}
+  .card .meta{color:var(--muted);font-size:12px}
+  .card .avail{font-size:12px}
+  .card .avail.low{color:var(--accent2)}
+  .card .avail.zero{color:var(--danger)}
+  .card .qty-row{display:flex;align-items:center;gap:6px;margin-top:4px}
+  .stepper{
+    display:inline-flex;align-items:center;border:1px solid var(--line);
+    border-radius:999px;overflow:hidden;background:var(--panel2);
+  }
+  .stepper button{
+    width:30px;height:30px;background:transparent;color:var(--text);
+    border:none;font-size:16px;cursor:pointer;
+  }
+  .stepper input{
+    width:36px;height:30px;text-align:center;background:transparent;
+    border:none;color:var(--text);font-size:14px;padding:0;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stepper input[type=number]{-moz-appearance:textfield}
+  .card .add{
+    flex:1;border:none;border-radius:999px;background:var(--accent);color:#0a0a0a;
+    font-weight:700;font-size:13px;padding:8px 10px;cursor:pointer;
+  }
+  .card .add:disabled{background:#444;color:#888;cursor:not-allowed}
+  .card .add.in-cart{background:var(--ok);color:#0a0a0a}
+
+  /* ── Empty / loading ── */
+  .state{
+    text-align:center;color:var(--muted);padding:40px 20px;
+    background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);
+  }
+
+  /* ── Cart drawer ── */
+  .drawer-bg{
+    position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;
+    opacity:0;pointer-events:none;transition:opacity .2s;
+  }
+  .drawer-bg.open{opacity:1;pointer-events:auto}
+  .drawer{
+    position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);
+    background:var(--bg);border-left:1px solid var(--line);z-index:60;
+    transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;
+  }
+  .drawer.open{transform:translateX(0)}
+  .drawer header{
+    padding:14px 16px;border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:10px;
+  }
+  .drawer header h2{flex:1;margin:0;font-size:17px}
+  .drawer header button.close{
+    background:transparent;border:none;color:var(--muted);font-size:22px;cursor:pointer;
+  }
+  .drawer .content{flex:1;overflow-y:auto;padding:14px 16px}
+  .drawer .cart-list{display:flex;flex-direction:column;gap:10px}
+  .cart-item{
+    display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;padding:10px;align-items:center;
+  }
+  .cart-item .cthumb{
+    width:48px;height:48px;border-radius:8px;background:var(--panel2) center/cover no-repeat;
+    flex-shrink:0;
+  }
+  .cart-item .cinfo{flex:1;min-width:0}
+  .cart-item .cname{font-size:13px;font-weight:600;line-height:1.3}
+  .cart-item .cmeta{color:var(--muted);font-size:11px}
+  .cart-item .cremove{
+    background:transparent;border:none;color:var(--muted);cursor:pointer;
+    font-size:18px;padding:4px 6px;
+  }
+
+  .form label{display:block;color:var(--muted);font-size:12px;margin:12px 0 4px}
+  .form input,.form textarea{
+    width:100%;padding:11px 12px;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;font-size:15px;
+  }
+  .form textarea{min-height:70px;resize:vertical}
+  .form input:focus,.form textarea:focus{outline:none;border-color:var(--accent)}
+
+  .drawer footer{
+    padding:12px 16px;border-top:1px solid var(--line);
+    display:flex;gap:10px;align-items:center;
+  }
+  .drawer footer .total{flex:1}
+  .drawer footer .total .big{font-size:18px;font-weight:700}
+  .drawer footer .total .small{color:var(--muted);font-size:12px}
+  .drawer footer .place{
+    padding:12px 20px;border:none;border-radius:999px;background:var(--accent);
+    color:#0a0a0a;font-weight:700;font-size:14px;cursor:pointer;
+  }
+  .drawer footer .place:disabled{background:#444;color:#888;cursor:not-allowed}
+
+  /* ── Success ── */
+  .success{
+    max-width:480px;margin:8vh auto 0;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);padding:28px;text-align:center;
+  }
+  .success .tick{
+    width:70px;height:70px;margin:0 auto 14px;border-radius:50%;
+    background:var(--ok);display:flex;align-items:center;justify-content:center;
+    color:#0a0a0a;font-size:38px;
+  }
+  .success h1{margin:0 0 6px}
+  .success .oid{color:var(--muted);font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .success .msg{margin:16px 0;color:var(--muted);font-size:14px}
+  .success button{
+    padding:12px 24px;border:none;border-radius:999px;background:var(--accent);
+    color:#0a0a0a;font-weight:700;font-size:14px;cursor:pointer;margin-top:4px;
+  }
+
+  /* ── Toast ── */
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translate(-50%,80px);
+    background:var(--panel);border:1px solid var(--line);border-radius:999px;
+    padding:10px 18px;font-size:13px;z-index:100;transition:transform .25s;
+  }
+  .toast.show{transform:translate(-50%,0)}
+  .toast.err{border-color:var(--danger);color:var(--danger)}
+
+  @media (max-width:520px){
+    .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+    .card .name{font-size:13px;min-height:32px}
+    main{padding:12px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Passcode gate ── -->
+<div class="screen active" id="scr-gate">
+  <div class="gate">
+    <h1>NRMAi Order Portal</h1>
+    <p class="sub">Enter your passcode to browse the catalogue and place an order.</p>
+    <label for="pc">Passcode</label>
+    <input id="pc" type="password" autocomplete="off" spellcheck="false" />
+    <button class="primary" id="btn-unlock">Unlock</button>
+    <div class="err" id="gate-err"></div>
+  </div>
+</div>
+
+<!-- ── Catalogue ── -->
+<div class="screen" id="scr-catalogue">
+  <header class="topbar">
+    <div class="logo">NRMA<span>i</span> · Orders</div>
+    <div class="grow"></div>
+    <button id="btn-cart">Cart <span class="pill" id="cart-pill">0</span></button>
+  </header>
+
+  <main>
+    <div class="search-row">
+      <input id="search" type="search" placeholder="Search items…" />
+      <div class="count" id="count">0 items</div>
+    </div>
+    <div id="catalogue"></div>
+  </main>
+</div>
+
+<!-- ── Success ── -->
+<div class="screen" id="scr-success">
+  <div class="success">
+    <div class="tick">✓</div>
+    <h1>Order received</h1>
+    <div class="oid" id="success-oid"></div>
+    <div class="msg">Your order has been sent to the Funkified team. You'll hear back shortly with delivery details.</div>
+    <button id="btn-new-order">Place another order</button>
+  </div>
+</div>
+
+<!-- ── Cart drawer ── -->
+<div class="drawer-bg" id="drawer-bg"></div>
+<div class="drawer" id="drawer">
+  <header>
+    <h2>Your order</h2>
+    <button class="close" id="btn-close-drawer" aria-label="Close">×</button>
+  </header>
+  <div class="content">
+    <div id="cart-list" class="cart-list"></div>
+    <div id="cart-empty" class="state">Your cart is empty. Add items from the catalogue.</div>
+
+    <div class="form" id="checkout-form">
+      <label for="f-delivered">Delivered by</label>
+      <input id="f-delivered" type="text" placeholder="Name / courier" />
+
+      <label for="f-pickup">Picked up by</label>
+      <input id="f-pickup" type="text" placeholder="Name of person collecting" />
+
+      <label for="f-dropoff">Drop-off address <span style="color:var(--danger)">*</span></label>
+      <input id="f-dropoff" type="text" placeholder="Street, suburb, state" />
+
+      <label for="f-notes">Notes</label>
+      <textarea id="f-notes" placeholder="Special instructions, timing, contact…"></textarea>
+    </div>
+  </div>
+  <footer>
+    <div class="total">
+      <div class="big"><span id="t-lines">0</span> items · <span id="t-units">0</span> units</div>
+      <div class="small">Approval follows by email</div>
+    </div>
+    <button class="place" id="btn-place">Place order</button>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ══════════════════════════════════════════════════════════════
+  //  CONFIG — set ENDPOINT to the Apps Script Web App /exec URL.
+  //  CLIENT is hard-coded so this build is NRMAi-specific.
+  // ══════════════════════════════════════════════════════════════
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwxhZiH_yrNp7oTWSht6qu7y5sWkKXnMTVAQyEXklnYXEbMQgYhacfhKU4ipJQ-rY6g8g/exec';
+  const CLIENT = 'NRMAi';
+  const STORAGE_PASSCODE = 'nrmai_pc_v1';
+  const STORAGE_CLIENTID = 'nrmai_cid_v1';
+
+  // ── state ──
+  const state = {
+    passcode: '',
+    catalogue: [],     // [{name,type,available,total,photoUrl,thumbUrl}]
+    cart: new Map(),   // name -> {name, qty, thumbUrl, available}
+    filter: ''
+  };
+
+  // ── tiny helpers ──
+  const $  = sel => document.querySelector(sel);
+  const $$ = sel => [...document.querySelectorAll(sel)];
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+    c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function showScreen(id){
+    $$('.screen').forEach(s => s.classList.toggle('active', s.id === id));
+    window.scrollTo(0,0);
+  }
+  function toast(msg, err){
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.toggle('err', !!err);
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function clientId(){
+    let id = localStorage.getItem(STORAGE_CLIENTID);
+    if (!id) {
+      id = (crypto.randomUUID && crypto.randomUUID()) ||
+        ('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+          return v.toString(16);
+        }));
+      localStorage.setItem(STORAGE_CLIENTID, id);
+    }
+    return id;
+  }
+
+  // ── network ──
+  async function api(action, body){
+    const payload = Object.assign({ action, client: CLIENT, passcode: state.passcode }, body || {});
+    const res = await fetch(ENDPOINT, {
+      method:'POST',
+      // text/plain avoids a CORS preflight against Apps Script.
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(payload),
+      redirect:'follow'
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const txt = await res.text();
+    try { return JSON.parse(txt); }
+    catch(e){ throw new Error('Bad server response'); }
+  }
+
+  // ── passcode gate ──
+  $('#btn-unlock').addEventListener('click', tryUnlock);
+  $('#pc').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+  async function tryUnlock(){
+    const pc = $('#pc').value.trim();
+    const err = $('#gate-err');
+    err.textContent = '';
+    if (!pc){ err.textContent = 'Enter a passcode.'; return; }
+    $('#btn-unlock').disabled = true;
+    try {
+      // Try loading the catalogue — this also validates the passcode.
+      state.passcode = pc;
+      const data = await api('clientcatalogue');
+      if (!data || !data.success){
+        state.passcode = '';
+        err.textContent = data && data.error ? data.error : 'Invalid passcode.';
+        return;
+      }
+      localStorage.setItem(STORAGE_PASSCODE, pc);
+      state.catalogue = data.items || [];
+      renderCatalogue();
+      showScreen('scr-catalogue');
+    } catch(e) {
+      state.passcode = '';
+      err.textContent = 'Could not reach server. Check your connection.';
+    } finally {
+      $('#btn-unlock').disabled = false;
+    }
+  }
+
+  // Auto-unlock if a passcode is remembered from a previous session.
+  async function autoUnlock(){
+    const saved = localStorage.getItem(STORAGE_PASSCODE);
+    if (!saved) return;
+    state.passcode = saved;
+    try {
+      const data = await api('clientcatalogue');
+      if (data && data.success){
+        state.catalogue = data.items || [];
+        renderCatalogue();
+        showScreen('scr-catalogue');
+      } else {
+        state.passcode = '';
+        localStorage.removeItem(STORAGE_PASSCODE);
+      }
+    } catch(_) { state.passcode = ''; }
+  }
+
+  // ── catalogue render ──
+  function filterItems(){
+    const q = state.filter.trim().toLowerCase();
+    if (!q) return state.catalogue;
+    return state.catalogue.filter(it =>
+      String(it.name).toLowerCase().includes(q) ||
+      String(it.type).toLowerCase().includes(q)
+    );
+  }
+
+  function renderCatalogue(){
+    const items = filterItems();
+    const root = $('#catalogue');
+    $('#count').textContent = items.length + ' item' + (items.length === 1 ? '' : 's');
+
+    if (!state.catalogue.length){
+      root.innerHTML = '<div class="state">No items available yet. Check back soon.</div>';
+      return;
+    }
+    if (!items.length){
+      root.innerHTML = '<div class="state">No items match your search.</div>';
+      return;
+    }
+
+    const html = ['<div class="grid">'];
+    for (const it of items){
+      const inCart = state.cart.get(it.name);
+      const avail = Number(it.available) || 0;
+      const qty = inCart ? inCart.qty : 1;
+      const availClass = avail === 0 ? 'zero' : (avail <= 2 ? 'low' : '');
+      const thumbStyle = it.thumbUrl
+        ? `style="background-image:url('${esc(it.thumbUrl)}')"`
+        : '';
+      const thumbClass = it.thumbUrl ? '' : 'empty';
+      html.push(
+        '<div class="card" data-name="' + esc(it.name) + '">',
+          `<div class="thumb ${thumbClass}" ${thumbStyle}></div>`,
+          '<div class="body">',
+            '<div class="name">' + esc(it.name) + '</div>',
+            (it.type ? '<div class="meta">' + esc(it.type) + '</div>' : ''),
+            `<div class="avail ${availClass}">${avail} available</div>`,
+            '<div class="qty-row">',
+              '<div class="stepper">',
+                '<button data-step="-1" aria-label="Decrease">−</button>',
+                `<input type="number" min="1" max="${Math.max(1,avail)}" value="${qty}" />`,
+                '<button data-step="1" aria-label="Increase">+</button>',
+              '</div>',
+              `<button class="add ${inCart?'in-cart':''}" ${avail===0?'disabled':''}>${inCart?'In cart':'Add'}</button>`,
+            '</div>',
+          '</div>',
+        '</div>'
+      );
+    }
+    html.push('</div>');
+    root.innerHTML = html.join('');
+  }
+
+  // ── catalogue interactions ──
+  $('#catalogue').addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if (!card) return;
+    const name = card.dataset.name;
+    const item = state.catalogue.find(x => x.name === name);
+    if (!item) return;
+
+    const input = card.querySelector('input[type=number]');
+
+    if (e.target.matches('.stepper button')){
+      const step = parseInt(e.target.dataset.step,10);
+      const max = Math.max(1, Number(item.available) || 1);
+      let v = (parseInt(input.value,10) || 1) + step;
+      if (v < 1) v = 1;
+      if (v > max) v = max;
+      input.value = v;
+      return;
+    }
+
+    if (e.target.matches('.add')){
+      const avail = Number(item.available) || 0;
+      if (avail === 0) return;
+      const qty = Math.min(Math.max(1, parseInt(input.value,10) || 1), avail);
+      state.cart.set(item.name, {
+        name: item.name,
+        qty,
+        thumbUrl: item.thumbUrl || '',
+        available: avail
+      });
+      updateCartBadge();
+      renderCatalogue();
+      toast(`Added ${qty} × ${item.name}`);
+      return;
+    }
+  });
+
+  $('#catalogue').addEventListener('change', (e) => {
+    if (!e.target.matches('input[type=number]')) return;
+    const card = e.target.closest('.card');
+    const name = card.dataset.name;
+    const item = state.catalogue.find(x => x.name === name);
+    if (!item) return;
+    const max = Math.max(1, Number(item.available) || 1);
+    let v = parseInt(e.target.value,10) || 1;
+    if (v < 1) v = 1;
+    if (v > max) v = max;
+    e.target.value = v;
+    // If the item is already in the cart, update its qty live.
+    const ex = state.cart.get(name);
+    if (ex){ ex.qty = v; updateCartBadge(); }
+  });
+
+  $('#search').addEventListener('input', (e) => {
+    state.filter = e.target.value;
+    renderCatalogue();
+  });
+
+  // ── cart drawer ──
+  $('#btn-cart').addEventListener('click', openDrawer);
+  $('#btn-close-drawer').addEventListener('click', closeDrawer);
+  $('#drawer-bg').addEventListener('click', closeDrawer);
+
+  function openDrawer(){
+    renderCart();
+    $('#drawer').classList.add('open');
+    $('#drawer-bg').classList.add('open');
+  }
+  function closeDrawer(){
+    $('#drawer').classList.remove('open');
+    $('#drawer-bg').classList.remove('open');
+  }
+
+  function updateCartBadge(){
+    const lines = state.cart.size;
+    $('#cart-pill').textContent = lines;
+    $('#t-lines').textContent = lines;
+    let units = 0;
+    state.cart.forEach(v => units += Number(v.qty) || 0);
+    $('#t-units').textContent = units;
+    $('#btn-place').disabled = lines === 0;
+  }
+
+  function renderCart(){
+    const list = $('#cart-list');
+    const empty = $('#cart-empty');
+    const form = $('#checkout-form');
+    if (state.cart.size === 0){
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      form.classList.add('hidden');
+    } else {
+      empty.classList.add('hidden');
+      form.classList.remove('hidden');
+      const rows = [];
+      state.cart.forEach(it => {
+        const thumbStyle = it.thumbUrl ? `style="background-image:url('${esc(it.thumbUrl)}')"` : '';
+        rows.push(
+          '<div class="cart-item" data-name="' + esc(it.name) + '">',
+            `<div class="cthumb" ${thumbStyle}></div>`,
+            '<div class="cinfo">',
+              '<div class="cname">' + esc(it.name) + '</div>',
+              '<div class="cmeta">' + it.qty + ' × · ' + it.available + ' available</div>',
+            '</div>',
+            '<div class="stepper" data-cart-stepper>',
+              '<button data-cstep="-1">−</button>',
+              `<input type="number" min="1" max="${Math.max(1,it.available)}" value="${it.qty}" />`,
+              '<button data-cstep="1">+</button>',
+            '</div>',
+            '<button class="cremove" aria-label="Remove">✕</button>',
+          '</div>'
+        );
+      });
+      list.innerHTML = rows.join('');
+    }
+    updateCartBadge();
+  }
+
+  $('#cart-list').addEventListener('click', (e) => {
+    const row = e.target.closest('.cart-item');
+    if (!row) return;
+    const name = row.dataset.name;
+    const it = state.cart.get(name);
+    if (!it) return;
+
+    if (e.target.matches('.cremove')){
+      state.cart.delete(name);
+      renderCart();
+      renderCatalogue();
+      return;
+    }
+    if (e.target.matches('[data-cstep]')){
+      const step = parseInt(e.target.dataset.cstep,10);
+      const input = row.querySelector('input[type=number]');
+      let v = (parseInt(input.value,10) || 1) + step;
+      const max = Math.max(1, it.available);
+      if (v < 1) v = 1;
+      if (v > max) v = max;
+      input.value = v;
+      it.qty = v;
+      updateCartBadge();
+      return;
+    }
+  });
+
+  $('#cart-list').addEventListener('change', (e) => {
+    if (!e.target.matches('input[type=number]')) return;
+    const row = e.target.closest('.cart-item');
+    const name = row.dataset.name;
+    const it = state.cart.get(name);
+    if (!it) return;
+    const max = Math.max(1, it.available);
+    let v = parseInt(e.target.value,10) || 1;
+    if (v < 1) v = 1;
+    if (v > max) v = max;
+    e.target.value = v;
+    it.qty = v;
+    updateCartBadge();
+  });
+
+  // ── place order ──
+  $('#btn-place').addEventListener('click', placeOrder);
+
+  async function placeOrder(){
+    if (state.cart.size === 0) return;
+    const dropoff = $('#f-dropoff').value.trim();
+    if (!dropoff){
+      toast('Drop-off address is required', true);
+      $('#f-dropoff').focus();
+      return;
+    }
+
+    const items = [];
+    state.cart.forEach(it => items.push({ name: it.name, qty: it.qty }));
+
+    const payload = {
+      clientId: clientId(),
+      deliveredBy: $('#f-delivered').value.trim(),
+      pickedUpBy:  $('#f-pickup').value.trim(),
+      dropoffAddress: dropoff,
+      notes: $('#f-notes').value.trim(),
+      items
+    };
+
+    $('#btn-place').disabled = true;
+    $('#btn-place').textContent = 'Placing…';
+    try {
+      const res = await api('clientorder', payload);
+      if (!res || !res.success){
+        toast((res && res.error) || 'Order failed', true);
+        return;
+      }
+      $('#success-oid').textContent = 'Order ID · ' + (res.orderId || '');
+      state.cart.clear();
+      updateCartBadge();
+      closeDrawer();
+      clearCheckoutForm();
+      showScreen('scr-success');
+      // Refresh catalogue in background so next order sees fresh availability.
+      refreshCatalogue();
+    } catch(e){
+      toast('Network error — please try again', true);
+    } finally {
+      $('#btn-place').disabled = false;
+      $('#btn-place').textContent = 'Place order';
+    }
+  }
+
+  function clearCheckoutForm(){
+    $('#f-delivered').value = '';
+    $('#f-pickup').value = '';
+    $('#f-dropoff').value = '';
+    $('#f-notes').value = '';
+  }
+
+  async function refreshCatalogue(){
+    try {
+      const data = await api('clientcatalogue');
+      if (data && data.success){
+        state.catalogue = data.items || [];
+        renderCatalogue();
+      }
+    } catch(_) {}
+  }
+
+  $('#btn-new-order').addEventListener('click', () => {
+    refreshCatalogue();
+    showScreen('scr-catalogue');
+  });
+
+  // ── service worker ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+    });
+  }
+
+  // ── kick off ──
+  autoUnlock();
+})();
+</script>
+</body>
+</html>

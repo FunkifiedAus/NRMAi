@@ -1,13 +1,15 @@
-/* NRMAi Order Portal — Service Worker v1
+/* NRMAi Order Portal — Service Worker v2 (NRMAi brand)
    - Caches the app shell for fast, reliable loading.
    - Network-first for same-origin GETs so deploys land immediately.
    - Passes through Apps Script + Drive requests without touching them,
      so passcode / catalogue / order calls always hit live data.
 */
-const VERSION = 'nrmai-portal-v1-2026-04-20';
+const VERSION = 'nrmai-portal-v2-2026-04-21-brand';
 const APP_SHELL = [
   './',
   './index.html',
+  './brand.css',
+  './logo.svg',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 ];

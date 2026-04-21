@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<meta name="theme-color" content="#0a0a0a" />
+<meta name="theme-color" content="#010C66" />
 <title>NRMAi — Order Portal</title>
 <link rel="manifest" href="./manifest.json" />
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -271,18 +271,18 @@
     <div id="cart-list" class="cart-list"></div>
     <div id="cart-empty" class="state">Your cart is empty. Add items from the catalogue.</div>
 
-   <div class="form" id="checkout-form">
+    <div class="form" id="checkout-form">
       <label for="f-dropoff-when">Drop-off date &amp; time <span style="color:var(--danger)">*</span></label>
-      <input id="f-dropoff-when" type="text" placeholder="e.g. 23/06 10AM, 09/10 1–5PM" />
+      <input id="f-dropoff-when" type="datetime-local" />
 
       <label for="f-pickup-when">Pick-up date &amp; time</label>
-      <input id="f-pickup-when" type="text" placeholder="e.g. after 3PM 23/06" />
+      <input id="f-pickup-when" type="datetime-local" />
 
       <label for="f-address">Delivery address <span style="color:var(--danger)">*</span></label>
       <input id="f-address" type="text" placeholder="Street, suburb, state" />
 
       <label for="f-notes">Access notes</label>
-      <textarea id="f-notes" placeholder="e.g. lift access requires pass, call 0400 000 000 on arrival"></textarea>
+      <textarea id="f-notes" placeholder="Loading dock, contact name &amp; number, parking, lift code…"></textarea>
     </div>
   </div>
   <footer>
@@ -350,10 +350,23 @@
   }
 
   // ── network ──
+  //   Code.gs requires a fresh UUID per POST for its idempotency guard,
+  //   so we mint one here on every call rather than reusing the long-term
+  //   per-browser `clientId()`. The long-term id is still sent in the
+  //   order payload so we can trace orders back to a device if needed.
+  function freshRequestId(){
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random()*16|0, v = c === 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+    });
+  }
+
   async function api(action, body){
-   const fresh = (crypto.randomUUID && crypto.randomUUID()) ||
-      (Date.now() + '-' + Math.random().toString(36).slice(2));
-    const payload = Object.assign({ action, client: CLIENT, passcode: state.passcode, clientId: fresh }, body || {});
+    const payload = Object.assign(
+      { action, client: CLIENT, passcode: state.passcode, clientId: freshRequestId() },
+      body || {}
+    );
     const res = await fetch(ENDPOINT, {
       method:'POST',
       // text/plain avoids a CORS preflight against Apps Script.
@@ -636,7 +649,7 @@
   // ── place order ──
   $('#btn-place').addEventListener('click', placeOrder);
 
-async function placeOrder(){
+  async function placeOrder(){
     if (state.cart.size === 0) return;
     const dropoffWhen = $('#f-dropoff-when').value.trim();
     const address     = $('#f-address').value.trim();
@@ -655,10 +668,11 @@ async function placeOrder(){
     state.cart.forEach(it => items.push({ name: it.name, qty: it.qty }));
 
     const payload = {
+      deviceId: clientId(),                       // long-term browser id (for traceability)
       dropoffWhen,
-      pickupWhen: $('#f-pickup-when').value.trim(),
+      pickupWhen:     $('#f-pickup-when').value.trim(),
       dropoffAddress: address,
-      notes: $('#f-notes').value.trim(),
+      notes:          $('#f-notes').value.trim(),
       items
     };
 
@@ -686,12 +700,11 @@ async function placeOrder(){
     }
   }
 
-function clearCheckoutForm(){
+  function clearCheckoutForm(){
     $('#f-dropoff-when').value = '';
     $('#f-pickup-when').value = '';
     $('#f-address').value = '';
     $('#f-notes').value = '';
-  }
   }
 
   async function refreshCatalogue(){

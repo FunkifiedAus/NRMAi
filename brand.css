@@ -1,0 +1,302 @@
+/* ════════════════════════════════════════════════════════════════
+   NRMAi · Order Portal — brand theme overlay
+   Drop this file in alongside index.html and add ONE line to
+   <head>:   <link rel="stylesheet" href="./brand.css" />
+   This file overrides the base palette, swaps the text logo for
+   the supplied SVG, and warms up the look-and-feel to match the
+   NRMAi AHC mark (cream #f7f1ea on a deep warm-dark background).
+   ════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Core palette — warm dark, cream accents */
+  --bg:      #0c1116;        /* deep warm dark */
+  --panel:   #161c23;        /* card background */
+  --panel2:  #1f262f;        /* input / secondary surface */
+  --line:    #2a323d;        /* dividers */
+  --text:    #f7f1ea;        /* NRMAi cream — primary text */
+  --muted:   #9ba4af;        /* muted secondary text */
+  --accent:  #f7f1ea;        /* CTA fill (cream) */
+  --accent2: #d8c9b3;        /* hover / soft cream */
+  --danger:  #ff6b6b;
+  --ok:      #5fd3a4;
+}
+
+/* ── Typography ─────────────────────────────── */
+body { letter-spacing: .005em; }
+h1, h2 { letter-spacing: -.01em; font-weight: 600; }
+
+/* ── Topbar with NRMAi logo ─────────────────── */
+header.topbar {
+  background: rgba(12, 17, 22, .92);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 18px;
+}
+header.topbar .logo {
+  /* Hide the placeholder text and show the SVG instead */
+  font-size: 0 !important;
+  line-height: 0;
+  width: 132px;
+  height: 42px;
+  background: url('./logo.svg') no-repeat left center;
+  background-size: contain;
+}
+header.topbar .logo span { display: none; }
+
+/* Cart pill — invert to cream-on-dark */
+header.topbar #btn-cart {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 9px 14px 9px 16px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+header.topbar #btn-cart .pill {
+  background: var(--accent);
+  color: #0c1116;
+}
+
+/* ── Passcode gate ──────────────────────────── */
+.gate {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 32px 28px 28px;
+  position: relative;
+}
+/* Drop the NRMAi logo above the H1 inside the gate, via :before */
+.gate::before {
+  content: '';
+  display: block;
+  width: 180px;
+  height: 56px;
+  margin: 0 auto 18px;
+  background: url('./logo.svg') no-repeat center;
+  background-size: contain;
+}
+.gate h1 {
+  text-align: center;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
+.gate p.sub {
+  text-align: center;
+  font-size: 13px;
+  margin: 0 0 18px;
+}
+.gate label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.gate input {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 15px;
+  letter-spacing: .25em;
+  text-align: center;
+}
+.gate input:focus { outline: none; border-color: var(--accent); }
+.gate button.primary {
+  background: var(--accent);
+  color: #0c1116;
+  border-radius: 999px;
+  padding: 14px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  margin-top: 18px;
+  transition: background .15s ease;
+}
+.gate button.primary:hover { background: var(--accent2); }
+
+/* ── Search bar ─────────────────────────────── */
+.search-row input {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 16px;
+  font-size: 14px;
+}
+.search-row input:focus { outline: none; border-color: var(--accent); }
+.search-row .count {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ── Catalogue cards ────────────────────────── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.card:hover { border-color: #3a4452; }
+.card .thumb { background-color: #0c1116; }
+.card .name {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text);
+}
+.card .meta {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.card .avail { font-size: 12px; font-weight: 500; }
+.card .avail.low  { color: #f0c674; }
+.card .avail.zero { color: var(--danger); }
+
+.card .add {
+  background: var(--accent);
+  color: #0c1116;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 11px;
+  padding: 10px 12px;
+  border-radius: 999px;
+  transition: background .15s ease;
+}
+.card .add:hover { background: var(--accent2); }
+.card .add.in-cart { background: var(--ok); color: #0c1116; }
+.card .add:disabled { background: #3a4452; color: #6b7280; }
+
+.stepper {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+}
+.stepper button { color: var(--text); }
+.stepper input  { color: var(--text); }
+
+/* ── Cart drawer ────────────────────────────── */
+.drawer {
+  background: var(--bg);
+  border-left: 1px solid var(--line);
+}
+.drawer header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer header h2 {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cart-item {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.cart-item .cname { font-weight: 500; }
+.cart-item .cmeta {
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.form label {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 14px;
+}
+.form input, .form textarea {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.form input:focus, .form textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.drawer footer {
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  padding: 14px 18px;
+}
+.drawer footer .total .big { font-size: 16px; font-weight: 500; }
+.drawer footer .total .small {
+  font-size: 10px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.drawer footer .place {
+  background: var(--accent);
+  color: #0c1116;
+  border-radius: 999px;
+  padding: 13px 24px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  transition: background .15s ease;
+}
+.drawer footer .place:hover { background: var(--accent2); }
+.drawer footer .place:disabled { background: #3a4452; color: #6b7280; }
+
+/* ── Success screen ─────────────────────────── */
+.success {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 36px 28px 32px;
+}
+.success::before {
+  content: '';
+  display: block;
+  width: 160px;
+  height: 50px;
+  margin: 0 auto 22px;
+  background: url('./logo.svg') no-repeat center;
+  background-size: contain;
+}
+.success .tick {
+  background: var(--accent);
+  color: #0c1116;
+}
+.success h1 { font-size: 20px; font-weight: 500; }
+.success .oid {
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.success button {
+  background: var(--accent);
+  color: #0c1116;
+  border-radius: 999px;
+  padding: 13px 28px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.success button:hover { background: var(--accent2); }
+
+/* ── Toast ──────────────────────────────────── */
+.toast {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  letter-spacing: .04em;
+}
+
+/* ── Mobile tweaks ──────────────────────────── */
+@media (max-width: 520px) {
+  header.topbar .logo { width: 110px; height: 36px; }
+  .gate::before       { width: 150px; height: 48px; margin-bottom: 14px; }
+  .success::before    { width: 140px; height: 44px; }
+}

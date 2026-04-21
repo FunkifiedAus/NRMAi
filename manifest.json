@@ -6,17 +6,23 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
+  "background_color": "#0c1116",
+  "theme_color": "#0c1116",
   "icons": [
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='36' fill='%230a0a0a'/><rect x='36' y='62' width='120' height='68' rx='10' fill='%23ff7a18'/><text x='96' y='108' text-anchor='middle' font-family='Arial,sans-serif' font-weight='700' font-size='38' fill='%230a0a0a'>NRMAi</text></svg>",
+      "src": "./logo.png",
+      "sizes": "1024x333",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='38' fill='%230c1116'/><g transform='translate(96 96) scale(0.14) translate(-492 -160)' fill='%23f7f1ea'><rect x='503.75' y='0' width='2.5' height='320'/><path d='M574.96,144.57h27.59l6.36,17h13.4l-25.7-68h-15.8l-25.6,68h13.4l6.36-17ZM588.75,107.68l9.38,25.09h-18.76l9.38-25.09Z'/><polygon points='661.1 132.57 689.9 132.57 689.9 161.57 703.4 161.57 703.4 93.57 689.9 93.57 689.9 120.77 661.1 120.77 661.1 93.57 647.5 93.57 647.5 161.57 661.1 161.57 661.1 132.57'/></g></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='96' fill='%230a0a0a'/><rect x='80' y='160' width='352' height='192' rx='28' fill='%23ff7a18'/><text x='256' y='286' text-anchor='middle' font-family='Arial,sans-serif' font-weight='700' font-size='104' fill='%230a0a0a'>NRMAi</text></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='96' fill='%230c1116'/><g transform='translate(256 256) scale(0.38) translate(-492 -160)' fill='%23f7f1ea'><rect x='503.75' y='0' width='2.5' height='320'/><path d='M574.96,144.57h27.59l6.36,17h13.4l-25.7-68h-15.8l-25.6,68h13.4l6.36-17ZM588.75,107.68l9.38,25.09h-18.76l9.38-25.09Z'/><polygon points='661.1 132.57 689.9 132.57 689.9 161.57 703.4 161.57 703.4 93.57 689.9 93.57 689.9 120.77 661.1 120.77 661.1 93.57 647.5 93.57 647.5 161.57 661.1 161.57 661.1 132.57'/></g></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

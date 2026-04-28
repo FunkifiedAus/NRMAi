@@ -210,29 +210,46 @@
   .toast.show{transform:translate(-50%,0)}
   .toast.err{border-color:var(--danger);color:var(--danger)}
 
-  /* ── Pending orders panel ── */
-  .pending-list{display:flex;flex-direction:column;gap:10px}
+  /* ── Orders panel (pending + scheduled, grouped by month) ── */
+  .pending-list{display:flex;flex-direction:column;gap:14px}
+  .month-block{display:flex;flex-direction:column;gap:8px}
+  .month-header{
+    font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+    border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:2px;
+  }
   .pending-card{
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s;
   }
   .pending-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-  .pending-card .row1{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .pending-card.locked{cursor:default;opacity:.92}
+  .pending-card.locked:hover{border-color:var(--line);transform:none}
+  .pending-card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
   .pending-card .pill-status{
     background:rgba(255,122,24,.15);color:var(--accent2);border:1px solid rgba(255,122,24,.4);
     padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
   }
   .pending-card .pill-status.onsite{background:rgba(61,220,132,.12);color:var(--ok);border-color:rgba(61,220,132,.4)}
   .pending-card .pill-status.partial{background:rgba(255,178,107,.12);color:var(--accent2);border-color:rgba(255,178,107,.4)}
-  .pending-card .oid{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
-  .pending-card .row2{font-size:14px}
+  .pending-card .pill-lock{
+    background:rgba(154,154,154,.12);color:var(--muted);border:1px solid var(--line);
+    padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.3px;
+  }
+  .pending-card .oid{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--muted);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pending-card .row2{font-size:15px;margin-bottom:2px}
   .pending-card .row3{color:var(--muted);font-size:12px;margin-top:2px}
   .pending-card .placed{color:var(--muted);font-size:12px;margin-top:2px}
   .pending-card.rush{border-color:rgba(255,77,77,.5)}
   .pending-card.rush .pill-rush{
     background:rgba(255,77,77,.12);color:var(--danger);border:1px solid rgba(255,77,77,.4);
-    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-left:6px;
+    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
   }
+  /* Delete button in cart drawer (edit mode only) */
+  .btn-delete{
+    background:transparent;border:1px solid rgba(255,77,77,.4);color:var(--danger);
+    padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;width:100%;margin-top:8px;
+  }
+  .btn-delete:hover{background:rgba(255,77,77,.08)}
 
   /* ── Pending count under availability ── */
   .card .pending{font-size:11px;color:var(--accent2);margin-top:-2px}
@@ -284,11 +301,12 @@
   </header>
 
   <main>
-    <!-- Pending orders panel: only shown when there's at least one. -->
-    <section id="pending-panel" class="hidden" style="margin-bottom:16px">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+    <!-- Pending orders panel — always visible, with empty/loading states. -->
+    <section id="pending-panel" style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
         <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
-        <span class="count" id="pending-count">0</span>
+        <span class="count" id="pending-count" style="flex:1"></span>
+        <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
       </div>
       <div id="pending-list" class="pending-list"></div>
     </section>
@@ -305,9 +323,9 @@
 <div class="screen" id="scr-name">
   <div class="gate">
     <h1>Who's placing this order?</h1>
-    <p class="sub">Your name appears on the order so the team knows who to contact. Saved on this device — change it any time from the header.</p>
-    <label for="name-input">Your name</label>
-    <input id="name-input" type="text" autocomplete="name" />
+    <p class="sub">Your full name appears on the order so the team knows who to contact. Saved on this device — change it any time from the header.</p>
+    <label for="name-input">Full name</label>
+    <input id="name-input" type="text" autocomplete="name" placeholder="e.g. Sam Patel" />
     <button class="primary" id="btn-save-name">Continue</button>
     <div class="err" id="name-err"></div>
   </div>
@@ -319,7 +337,7 @@
     <div class="tick">✓</div>
     <h1>Order received</h1>
     <div class="oid" id="success-oid"></div>
-    <div class="msg">Your order has been sent to the Funkified team. You'll hear back shortly with delivery details.</div>
+    <div class="msg">Your order has been sent to the events team. You'll hear back shortly with delivery details.</div>
     <button id="btn-new-order">Place another order</button>
   </div>
 </div>
@@ -336,6 +354,9 @@
     <div id="cart-empty" class="state">Your cart is empty. Add items from the catalogue.</div>
 
     <div class="form" id="checkout-form">
+      <label for="f-job-name">Job / event name <span style="color:var(--danger)">*</span></label>
+      <input id="f-job-name" type="text" placeholder="e.g. Spring Launch — Carriageworks" maxlength="80" />
+
       <label for="f-dropoff-when">Drop-off date &amp; time <span style="color:var(--danger)">*</span></label>
       <input id="f-dropoff-when" type="datetime-local" />
 
@@ -464,7 +485,17 @@
   });
   function saveNameAndContinue(){
     const n = $('#name-input').value.trim();
-    if (!n){ $('#name-err').textContent = 'Enter a name to continue.'; return; }
+    if (!n){ $('#name-err').textContent = 'Enter your full name to continue.'; return; }
+    // Soft-validate: looks like a full name (first + last). Allow any
+    // single-word value through if the user really means it — but we
+    // nudge them once before accepting, since a single word is almost
+    // always a typo or a first-name-only.
+    if (!/\s/.test(n) && !state._nameSubmittedOnce){
+      $('#name-err').textContent = 'Please include first and last name (or click again to confirm).';
+      state._nameSubmittedOnce = true;
+      return;
+    }
+    state._nameSubmittedOnce = false;
     setName(n);
     showScreen('scr-catalogue');
   }
@@ -563,13 +594,54 @@
     refreshPendingOrders();
   }
 
+  let _pendingState = 'idle'; // 'idle' | 'loading' | 'loaded' | 'error'
+  let _pendingError = '';
   async function refreshPendingOrders(){
+    _pendingState = 'loading';
+    _pendingError = '';
+    renderPendingPanel();
     try {
       const data = await api('clientorders');
-      if (!data || !data.success) return;
-      state.pendingOrders = (data.orders || []).filter(o => o.status === 'Pending');
+      console.log('[NRMAi] clientorders response:', data);
+      if (!data || !data.success){
+        _pendingState = 'error';
+        _pendingError = (data && data.error) || 'Server did not return success';
+        state.pendingOrders = [];
+        renderPendingPanel();
+        return;
+      }
+      // Server already filters to VISIBLE_STATUSES (Pending + Scheduled)
+      // and sorts ascending by drop-off date. Just keep what we got.
+      state.pendingOrders = data.orders || [];
+      _pendingState = 'loaded';
       renderPendingPanel();
-    } catch(_) { /* silent — panel just won't show */ }
+    } catch(e) {
+      _pendingState = 'error';
+      _pendingError = e && e.message ? e.message : 'Network error';
+      console.warn('[NRMAi] clientorders failed:', e);
+      state.pendingOrders = [];
+      renderPendingPanel();
+    }
+  }
+  // Manual refresh button.
+  document.addEventListener('click', e => {
+    if (e.target && e.target.id === 'btn-refresh-pending') refreshPendingOrders();
+  });
+
+  // Month-key from a drop-off datetime: "2026-05" so we can group
+  // chronologically. fmtMonth() returns the human label like "May 2026".
+  function monthKey(s){
+    if (!s) return '';
+    const t = Date.parse(s);
+    if (isNaN(t)) return '';
+    const d = new Date(t);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+  }
+  function fmtMonth(key){
+    if (!key) return 'No date';
+    const [y, m] = key.split('-');
+    const d = new Date(Number(y), Number(m)-1, 1);
+    return d.toLocaleString('en-AU', { month: 'long', year: 'numeric' });
   }
 
   // ── catalogue render ──
@@ -638,45 +710,105 @@
     root.innerHTML = html.join('');
   }
 
-  // ── Pending orders panel ──
+  // ── Orders panel (Pending + Scheduled, grouped by month) ──
   function renderPendingPanel(){
     const panel = $('#pending-panel');
     const list = $('#pending-list');
     const count = $('#pending-count');
     const orders = state.pendingOrders || [];
-    if (!orders.length){
-      panel.classList.add('hidden');
-      list.innerHTML = '';
+
+    if (_pendingState === 'loading'){
+      count.textContent = '';
+      list.innerHTML = '<div class="state" style="padding:18px">Loading your orders…</div>';
       return;
     }
-    panel.classList.remove('hidden');
-    count.textContent = orders.length + ' order' + (orders.length === 1 ? '' : 's');
-    list.innerHTML = orders.map(o => {
+    if (_pendingState === 'error'){
+      count.textContent = '';
+      list.innerHTML = '<div class="state" style="padding:18px;color:var(--danger)">Couldn\'t load orders: ' + esc(_pendingError) + '</div>';
+      return;
+    }
+    if (!orders.length){
+      count.textContent = '';
+      list.innerHTML = '<div class="state" style="padding:18px">No pending or scheduled orders right now. Place one below and it\'ll appear here.</div>';
+      return;
+    }
+
+    // Group by month-key (server already sorted ascending). Orders
+    // without a parseable drop-off date land in a "No date" bucket
+    // at the top so they don't get lost.
+    const groups = {};
+    const groupOrder = [];
+    orders.forEach(o => {
+      const key = monthKey(o.dropoffWhen) || '';
+      if (!groups[key]) { groups[key] = []; groupOrder.push(key); }
+      groups[key].push(o);
+    });
+
+    const pendingTotal   = orders.filter(o => o.status === 'Pending').length;
+    const scheduledTotal = orders.filter(o => o.status === 'Scheduled').length;
+    const counts = [];
+    if (pendingTotal)   counts.push(pendingTotal + ' pending');
+    if (scheduledTotal) counts.push(scheduledTotal + ' scheduled');
+    count.textContent = counts.join(' · ');
+
+    const cardHtml = (o) => {
       const rush = isRush(o.dropoffWhen);
       const lineCount = o.items.length;
       const units = o.items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
       const placed = o.placedBy ? `Placed by ${esc(o.placedBy)}` : '';
+      const isScheduled = o.status === 'Scheduled';
+      const statusClass = isScheduled ? 'pill-status onsite' : 'pill-status';
+      const titleLine = o.jobName
+        ? `<strong>${esc(o.jobName)}</strong>`
+        : `<strong>${esc(o.orderId)}</strong>`;
+      const cls = ['pending-card'];
+      if (rush) cls.push('rush');
+      if (isScheduled) cls.push('locked');
       return `
-        <div class="pending-card ${rush?'rush':''}" data-orderid="${esc(o.orderId)}">
+        <div class="${cls.join(' ')}" data-orderid="${esc(o.orderId)}" data-status="${esc(o.status)}">
           <div class="row1">
-            <span class="pill-status">Pending</span>
-            ${rush ? '<span class="pill-rush">Rush window</span>' : ''}
+            <span class="${statusClass}">${esc(o.status)}</span>
+            ${rush && !isScheduled ? '<span class="pill-rush">Rush window</span>' : ''}
+            ${isScheduled ? '<span class="pill-lock">🔒 email to change</span>' : ''}
             <span class="oid">${esc(o.orderId)}</span>
           </div>
-          <div class="row2"><strong>${fmtDateNice(o.dropoffWhen)}</strong> · ${esc(o.address || '—')}</div>
+          <div class="row2">${titleLine}</div>
+          <div class="row3"><strong>${fmtDateNice(o.dropoffWhen)}</strong> · ${esc(o.address || '—')}</div>
           <div class="row3">${lineCount} item${lineCount===1?'':'s'} · ${units} units</div>
           ${placed ? `<div class="placed">${placed}</div>` : ''}
         </div>`;
-    }).join('');
+    };
+
+    const monthHtml = (key) => {
+      const groupOrders = groups[key];
+      const headerLabel = fmtMonth(key);
+      return `
+        <div class="month-block">
+          <div class="month-header">${esc(headerLabel)}</div>
+          ${groupOrders.map(cardHtml).join('')}
+        </div>`;
+    };
+
+    list.innerHTML = groupOrder.map(monthHtml).join('') +
+      '<div class="state" style="padding:14px;margin-top:10px;font-size:12px">' +
+        'To change a <strong>Scheduled</strong> order, email ' +
+        '<a href="mailto:jacob@funkified.com.au" style="color:var(--accent)">jacob@funkified.com.au</a>.' +
+      '</div>';
   }
 
   // Click a pending card → open the cart drawer pre-filled with that order.
+  // Scheduled cards are read-only — clicking them shows a toast pointing
+  // at the email instead of opening the drawer.
   $('#pending-list').addEventListener('click', (e) => {
     const card = e.target.closest('.pending-card');
     if (!card) return;
     const orderId = card.dataset.orderid;
     const order = state.pendingOrders.find(o => o.orderId === orderId);
     if (!order) return;
+    if (order.status === 'Scheduled' || !order.editable){
+      toast('Scheduled — email jacob@funkified.com.au to change');
+      return;
+    }
     enterEditMode(order);
   });
 
@@ -700,6 +832,7 @@
       });
     }
     // Pre-fill the form fields.
+    $('#f-job-name').value     = order.jobName || '';
     $('#f-dropoff-when').value = toLocalDateTimeInput(order.dropoffWhen);
     $('#f-pickup-when').value  = toLocalDateTimeInput(order.pickupWhen);
     $('#f-address').value      = order.address || '';
@@ -837,6 +970,9 @@
     // submit button label too (see updateCartBadge).
     const existing = $('#edit-banner-host');
     if (existing) existing.remove();
+    // Remove any prior delete button before re-rendering.
+    const oldDel = $('#btn-delete-order');
+    if (oldDel) oldDel.remove();
     if (state.editingOrderId){
       const dropoff = $('#f-dropoff-when').value;
       const rush = isRush(dropoff);
@@ -845,9 +981,17 @@
       banner.className = 'edit-banner' + (rush ? ' rush' : '');
       banner.innerHTML = rush
         ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
-          ' days. Saving will send a request to Funkified for approval; the order is unchanged until we confirm.'
-        : 'Editing a pending order. Saving will commit the changes immediately and email Funkified.';
+          ' days. Saving will send a request to the events team for approval; the order is unchanged until we confirm.'
+        : 'Editing a pending order. Saving will commit the changes immediately and email the events team.';
       list.parentNode.insertBefore(banner, list);
+      // Delete button below the form — pending orders only.
+      const del = document.createElement('button');
+      del.id = 'btn-delete-order';
+      del.type = 'button';
+      del.className = 'btn-delete';
+      del.textContent = 'Delete this order';
+      del.addEventListener('click', deleteCurrentOrder);
+      form.appendChild(del);
     }
     if (state.cart.size === 0){
       list.innerHTML = '';
@@ -895,8 +1039,8 @@
         banner.classList.toggle('rush', rush);
         banner.innerHTML = rush
           ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
-            ' days. Saving will send a request to Funkified for approval; the order is unchanged until we confirm.'
-          : 'Editing a pending order. Saving will commit the changes immediately and email Funkified.';
+            ' days. Saving will send a request to the events team for approval; the order is unchanged until we confirm.'
+          : 'Editing a pending order. Saving will commit the changes immediately and email the events team.';
       }
       updateCartBadge();
     }
@@ -944,6 +1088,37 @@
     updateCartBadge();
   });
 
+  // ── delete pending order ──
+  async function deleteCurrentOrder(){
+    if (!state.editingOrderId) return;
+    const ok = confirm('Delete this pending order? This is permanent and the events team will be notified.');
+    if (!ok) return;
+    const btn = $('#btn-delete-order');
+    if (btn){ btn.disabled = true; btn.textContent = 'Deleting…'; }
+    try {
+      const res = await api('clientdeleteorder', {
+        orderId: state.editingOrderId,
+        placedBy: state.placedBy
+      });
+      if (!res || !res.success){
+        toast((res && res.error) || 'Could not delete', true);
+        if (btn){ btn.disabled = false; btn.textContent = 'Delete this order'; }
+        return;
+      }
+      toast('Order deleted.');
+      state.editingOrderId = null;
+      state.cart.clear();
+      updateCartBadge();
+      closeDrawer();
+      clearCheckoutForm();
+      refreshCatalogue();
+      refreshPendingOrders();
+    } catch(e){
+      toast('Network error — please try again', true);
+      if (btn){ btn.disabled = false; btn.textContent = 'Delete this order'; }
+    }
+  }
+
   // ── place order ──
   $('#btn-place').addEventListener('click', placeOrder);
 
@@ -953,8 +1128,14 @@
       toast('Set your name first (top right)', true);
       return;
     }
+    const jobName     = $('#f-job-name').value.trim();
     const dropoffWhen = $('#f-dropoff-when').value.trim();
     const address     = $('#f-address').value.trim();
+    if (!jobName){
+      toast('Job / event name is required', true);
+      $('#f-job-name').focus();
+      return;
+    }
     if (!dropoffWhen){
       toast('Drop-off date & time is required', true);
       $('#f-dropoff-when').focus();
@@ -981,6 +1162,7 @@
     const basePayload = {
       deviceId: clientId(),                       // long-term browser id (for traceability)
       placedBy:       state.placedBy,
+      jobName,
       dropoffWhen,
       pickupWhen:     $('#f-pickup-when').value.trim(),
       dropoffAddress: address,
@@ -1005,7 +1187,7 @@
       }
       // Different success messages for edit-applied vs edit-request vs new.
       if (res.requiresApproval){
-        toast('Edit request sent to Funkified — order unchanged until we approve.');
+        toast('Edit request sent to the events team — order unchanged until we approve.');
       } else if (res.edited){
         toast('Order updated.');
       } else {
@@ -1031,6 +1213,7 @@
   }
 
   function clearCheckoutForm(){
+    $('#f-job-name').value = '';
     $('#f-dropoff-when').value = '';
     $('#f-pickup-when').value = '';
     $('#f-address').value = '';

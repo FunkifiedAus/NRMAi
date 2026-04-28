@@ -210,6 +210,48 @@
   .toast.show{transform:translate(-50%,0)}
   .toast.err{border-color:var(--danger);color:var(--danger)}
 
+  /* ── Pending orders panel ── */
+  .pending-list{display:flex;flex-direction:column;gap:10px}
+  .pending-card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s;
+  }
+  .pending-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .pending-card .row1{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .pending-card .pill-status{
+    background:rgba(255,122,24,.15);color:var(--accent2);border:1px solid rgba(255,122,24,.4);
+    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+  }
+  .pending-card .pill-status.onsite{background:rgba(61,220,132,.12);color:var(--ok);border-color:rgba(61,220,132,.4)}
+  .pending-card .pill-status.partial{background:rgba(255,178,107,.12);color:var(--accent2);border-color:rgba(255,178,107,.4)}
+  .pending-card .oid{flex:1;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--muted)}
+  .pending-card .row2{font-size:14px}
+  .pending-card .row3{color:var(--muted);font-size:12px;margin-top:2px}
+  .pending-card .placed{color:var(--muted);font-size:12px;margin-top:2px}
+  .pending-card.rush{border-color:rgba(255,77,77,.5)}
+  .pending-card.rush .pill-rush{
+    background:rgba(255,77,77,.12);color:var(--danger);border:1px solid rgba(255,77,77,.4);
+    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;margin-left:6px;
+  }
+
+  /* ── Pending count under availability ── */
+  .card .pending{font-size:11px;color:var(--accent2);margin-top:-2px}
+  .card .pending::before{content:'⏳ '}
+
+  /* ── Edit-mode banner in cart drawer ── */
+  .edit-banner{
+    background:rgba(255,122,24,.1);border:1px solid rgba(255,122,24,.5);
+    color:var(--accent2);padding:10px 14px;border-radius:10px;
+    font-size:13px;margin-bottom:14px;
+  }
+  .edit-banner.rush{
+    background:rgba(255,77,77,.08);border-color:rgba(255,77,77,.5);color:var(--danger);
+  }
+  .edit-banner strong{color:var(--text)}
+
+  /* ── Topbar name chip ── */
+  #btn-name{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
   @media (max-width:520px){
     .grid{grid-template-columns:repeat(2,1fr);gap:10px}
     .card .name{font-size:13px;min-height:32px}
@@ -237,16 +279,38 @@
   <header class="topbar">
     <div class="logo">NRMA<span>i</span> · Orders</div>
     <div class="grow"></div>
+    <button id="btn-name" title="Change name"><span id="name-chip">—</span></button>
     <button id="btn-cart">Cart <span class="pill" id="cart-pill">0</span></button>
   </header>
 
   <main>
+    <!-- Pending orders panel: only shown when there's at least one. -->
+    <section id="pending-panel" class="hidden" style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
+        <span class="count" id="pending-count">0</span>
+      </div>
+      <div id="pending-list" class="pending-list"></div>
+    </section>
+
     <div class="search-row">
       <input id="search" type="search" placeholder="Search items…" />
       <div class="count" id="count">0 items</div>
     </div>
     <div id="catalogue"></div>
   </main>
+</div>
+
+<!-- ── Name capture modal ── -->
+<div class="screen" id="scr-name">
+  <div class="gate">
+    <h1>Who's placing this order?</h1>
+    <p class="sub">Your name appears on the order so the team knows who to contact. Saved on this device — change it any time from the header.</p>
+    <label for="name-input">Your name</label>
+    <input id="name-input" type="text" autocomplete="name" />
+    <button class="primary" id="btn-save-name">Continue</button>
+    <div class="err" id="name-err"></div>
+  </div>
 </div>
 
 <!-- ── Success ── -->
@@ -308,13 +372,18 @@
   const CLIENT = 'NRMAi';
   const STORAGE_PASSCODE = 'nrmai_pc_v1';
   const STORAGE_CLIENTID = 'nrmai_cid_v1';
+  const STORAGE_NAME     = 'nrmai_name_v1';
+  const RUSH_WINDOW_DAYS = 14; // matches CLIENT_CONFIG.RUSH_WINDOW_DAYS server-side
 
   // ── state ──
   const state = {
     passcode: '',
-    catalogue: [],     // [{name,type,available,total,photoUrl,thumbUrl}]
-    cart: new Map(),   // name -> {name, qty, thumbUrl, available}
-    filter: ''
+    placedBy: '',
+    catalogue: [],      // [{name,type,available,total,pending,city,photoUrl,thumbUrl}]
+    pendingOrders: [],  // [{orderId,status,dropoffWhen,...,items:[]}]
+    cart: new Map(),    // name -> {name, qty, thumbUrl, available, pending}
+    filter: '',
+    editingOrderId: null // when set, cart drawer is in edit mode
   };
 
   // ── tiny helpers ──
@@ -347,6 +416,57 @@
       localStorage.setItem(STORAGE_CLIENTID, id);
     }
     return id;
+  }
+
+  // ── Person name (placedBy) ──
+  function loadName(){
+    const n = localStorage.getItem(STORAGE_NAME) || '';
+    state.placedBy = n;
+    updateNameChip();
+    return n;
+  }
+  function setName(n){
+    n = String(n || '').trim();
+    state.placedBy = n;
+    if (n) localStorage.setItem(STORAGE_NAME, n);
+    else   localStorage.removeItem(STORAGE_NAME);
+    updateNameChip();
+  }
+  function updateNameChip(){
+    const chip = $('#name-chip');
+    if (chip) chip.textContent = state.placedBy || 'Set name';
+  }
+  function fmtDateNice(s){
+    if (!s) return '—';
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return s;
+    return d.toLocaleString('en-AU',{ weekday:'short', day:'numeric', month:'short',
+      hour:'2-digit', minute:'2-digit' });
+  }
+  function daysUntil(s){
+    if (!s) return null;
+    const t = Date.parse(s);
+    if (isNaN(t)) return null;
+    return (t - Date.now()) / 86400000;
+  }
+  function isRush(s){
+    const d = daysUntil(s);
+    return d != null && d < RUSH_WINDOW_DAYS;
+  }
+
+  // Name modal
+  $('#btn-save-name').addEventListener('click', saveNameAndContinue);
+  $('#name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveNameAndContinue(); });
+  $('#btn-name').addEventListener('click', () => {
+    $('#name-input').value = state.placedBy;
+    $('#name-err').textContent = '';
+    showScreen('scr-name');
+  });
+  function saveNameAndContinue(){
+    const n = $('#name-input').value.trim();
+    if (!n){ $('#name-err').textContent = 'Enter a name to continue.'; return; }
+    setName(n);
+    showScreen('scr-catalogue');
   }
 
   // ── network ──
@@ -401,8 +521,7 @@
       }
       localStorage.setItem(STORAGE_PASSCODE, pc);
       state.catalogue = data.items || [];
-      renderCatalogue();
-      showScreen('scr-catalogue');
+      enterApp();
     } catch(e) {
       state.passcode = '';
       err.textContent = 'Could not reach server. Check your connection.';
@@ -420,13 +539,37 @@
       const data = await api('clientcatalogue');
       if (data && data.success){
         state.catalogue = data.items || [];
-        renderCatalogue();
-        showScreen('scr-catalogue');
+        enterApp();
       } else {
         state.passcode = '';
         localStorage.removeItem(STORAGE_PASSCODE);
       }
     } catch(_) { state.passcode = ''; }
+  }
+
+  // After successful auth: ensure we have a person name on file, render
+  // the catalogue, and pull this client's pending orders to the top.
+  function enterApp(){
+    renderCatalogue();
+    if (!state.placedBy){
+      // First time on this device — ask for a name before showing the
+      // catalogue. The user can change it any time from the topbar.
+      $('#name-input').value = '';
+      $('#name-err').textContent = '';
+      showScreen('scr-name');
+    } else {
+      showScreen('scr-catalogue');
+    }
+    refreshPendingOrders();
+  }
+
+  async function refreshPendingOrders(){
+    try {
+      const data = await api('clientorders');
+      if (!data || !data.success) return;
+      state.pendingOrders = (data.orders || []).filter(o => o.status === 'Pending');
+      renderPendingPanel();
+    } catch(_) { /* silent — panel just won't show */ }
   }
 
   // ── catalogue render ──
@@ -457,19 +600,28 @@
     for (const it of items){
       const inCart = state.cart.get(it.name);
       const avail = Number(it.available) || 0;
+      const pending = Number(it.pending) || 0;
       const qty = inCart ? inCart.qty : 1;
       const availClass = avail === 0 ? 'zero' : (avail <= 2 ? 'low' : '');
       const thumbStyle = it.thumbUrl
         ? `style="background-image:url('${esc(it.thumbUrl)}')"`
         : '';
       const thumbClass = it.thumbUrl ? '' : 'empty';
+      const cityLine = it.city
+        ? `<div class="meta">📍 ${esc(it.city)}</div>`
+        : '';
+      const pendingLine = pending > 0
+        ? `<div class="pending">${pending} in pending order${pending===1?'':'s'}</div>`
+        : '';
       html.push(
         '<div class="card" data-name="' + esc(it.name) + '">',
           `<div class="thumb ${thumbClass}" ${thumbStyle}></div>`,
           '<div class="body">',
             '<div class="name">' + esc(it.name) + '</div>',
             (it.type ? '<div class="meta">' + esc(it.type) + '</div>' : ''),
+            cityLine,
             `<div class="avail ${availClass}">${avail} available</div>`,
+            pendingLine,
             '<div class="qty-row">',
               '<div class="stepper">',
                 '<button data-step="-1" aria-label="Decrease">−</button>',
@@ -484,6 +636,97 @@
     }
     html.push('</div>');
     root.innerHTML = html.join('');
+  }
+
+  // ── Pending orders panel ──
+  function renderPendingPanel(){
+    const panel = $('#pending-panel');
+    const list = $('#pending-list');
+    const count = $('#pending-count');
+    const orders = state.pendingOrders || [];
+    if (!orders.length){
+      panel.classList.add('hidden');
+      list.innerHTML = '';
+      return;
+    }
+    panel.classList.remove('hidden');
+    count.textContent = orders.length + ' order' + (orders.length === 1 ? '' : 's');
+    list.innerHTML = orders.map(o => {
+      const rush = isRush(o.dropoffWhen);
+      const lineCount = o.items.length;
+      const units = o.items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+      const placed = o.placedBy ? `Placed by ${esc(o.placedBy)}` : '';
+      return `
+        <div class="pending-card ${rush?'rush':''}" data-orderid="${esc(o.orderId)}">
+          <div class="row1">
+            <span class="pill-status">Pending</span>
+            ${rush ? '<span class="pill-rush">Rush window</span>' : ''}
+            <span class="oid">${esc(o.orderId)}</span>
+          </div>
+          <div class="row2"><strong>${fmtDateNice(o.dropoffWhen)}</strong> · ${esc(o.address || '—')}</div>
+          <div class="row3">${lineCount} item${lineCount===1?'':'s'} · ${units} units</div>
+          ${placed ? `<div class="placed">${placed}</div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  // Click a pending card → open the cart drawer pre-filled with that order.
+  $('#pending-list').addEventListener('click', (e) => {
+    const card = e.target.closest('.pending-card');
+    if (!card) return;
+    const orderId = card.dataset.orderid;
+    const order = state.pendingOrders.find(o => o.orderId === orderId);
+    if (!order) return;
+    enterEditMode(order);
+  });
+
+  function enterEditMode(order){
+    state.editingOrderId = order.orderId;
+    // Replace the cart with this order's items.
+    state.cart.clear();
+    for (const it of order.items){
+      // Look up the live availability/pending for each item from
+      // the catalogue. Fall back to the qty itself if unknown.
+      const cat = state.catalogue.find(c => c.name === it.name) || {};
+      state.cart.set(it.name, {
+        name: it.name,
+        qty: Number(it.qty) || 1,
+        thumbUrl: cat.thumbUrl || '',
+        // Edit mode: the order's existing qty is already deducted from
+        // available, so add it back so the user can keep that level
+        // or increase it.
+        available: (Number(cat.available) || 0) + (Number(it.qty) || 0),
+        pending: Number(cat.pending) || 0
+      });
+    }
+    // Pre-fill the form fields.
+    $('#f-dropoff-when').value = toLocalDateTimeInput(order.dropoffWhen);
+    $('#f-pickup-when').value  = toLocalDateTimeInput(order.pickupWhen);
+    $('#f-address').value      = order.address || '';
+    $('#f-notes').value        = order.notes || '';
+    openDrawer();
+  }
+
+  function exitEditMode(){
+    state.editingOrderId = null;
+    state.cart.clear();
+    clearCheckoutForm();
+    updateCartBadge();
+    renderCart();
+  }
+
+  // datetime-local input expects "YYYY-MM-DDTHH:MM"; the sheet often
+  // stores it that way already, but some edits might have ISO strings.
+  function toLocalDateTimeInput(s){
+    if (!s) return '';
+    s = String(s);
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0, 16);
+    const t = Date.parse(s);
+    if (isNaN(t)) return '';
+    const d = new Date(t);
+    const pad = n => String(n).padStart(2,'0');
+    return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate()) +
+           'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   // ── catalogue interactions ──
@@ -557,6 +800,11 @@
   function closeDrawer(){
     $('#drawer').classList.remove('open');
     $('#drawer-bg').classList.remove('open');
+    // Closing the drawer mid-edit cancels the edit so a fresh "Cart"
+    // open isn't haunted by half-applied changes.
+    if (state.editingOrderId){
+      exitEditMode();
+    }
   }
 
   function updateCartBadge(){
@@ -566,13 +814,41 @@
     let units = 0;
     state.cart.forEach(v => units += Number(v.qty) || 0);
     $('#t-units').textContent = units;
-    $('#btn-place').disabled = lines === 0;
+    const btn = $('#btn-place');
+    btn.disabled = lines === 0;
+    if (state.editingOrderId){
+      const rush = isRush($('#f-dropoff-when').value);
+      btn.textContent = rush ? 'Submit edit request' : 'Save changes';
+    } else {
+      btn.textContent = 'Place order';
+    }
   }
 
   function renderCart(){
     const list = $('#cart-list');
     const empty = $('#cart-empty');
     const form = $('#checkout-form');
+    // Drawer header reflects edit mode.
+    const drawerH2 = $('#drawer header h2');
+    if (drawerH2) drawerH2.textContent = state.editingOrderId
+      ? 'Edit order ' + state.editingOrderId
+      : 'Your order';
+    // Edit-mode banner: rush vs non-rush message changes the
+    // submit button label too (see updateCartBadge).
+    const existing = $('#edit-banner-host');
+    if (existing) existing.remove();
+    if (state.editingOrderId){
+      const dropoff = $('#f-dropoff-when').value;
+      const rush = isRush(dropoff);
+      const banner = document.createElement('div');
+      banner.id = 'edit-banner-host';
+      banner.className = 'edit-banner' + (rush ? ' rush' : '');
+      banner.innerHTML = rush
+        ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
+          ' days. Saving will send a request to Funkified for approval; the order is unchanged until we confirm.'
+        : 'Editing a pending order. Saving will commit the changes immediately and email Funkified.';
+      list.parentNode.insertBefore(banner, list);
+    }
     if (state.cart.size === 0){
       list.innerHTML = '';
       empty.classList.remove('hidden');
@@ -583,12 +859,16 @@
       const rows = [];
       state.cart.forEach(it => {
         const thumbStyle = it.thumbUrl ? `style="background-image:url('${esc(it.thumbUrl)}')"` : '';
+        const pending = Number(it.pending) || 0;
+        const pendingTxt = pending > 0
+          ? ' · <span style="color:var(--accent2)">' + pending + ' pending</span>'
+          : '';
         rows.push(
           '<div class="cart-item" data-name="' + esc(it.name) + '">',
             `<div class="cthumb" ${thumbStyle}></div>`,
             '<div class="cinfo">',
               '<div class="cname">' + esc(it.name) + '</div>',
-              '<div class="cmeta">' + it.qty + ' × · ' + it.available + ' available</div>',
+              '<div class="cmeta">' + it.qty + ' × · ' + it.available + ' available' + pendingTxt + '</div>',
             '</div>',
             '<div class="stepper" data-cart-stepper>',
               '<button data-cstep="-1">−</button>',
@@ -603,6 +883,24 @@
     }
     updateCartBadge();
   }
+
+  // Re-render the edit banner whenever the drop-off date changes,
+  // so the rush wording flips on/off as the user picks a date.
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'f-dropoff-when' && state.editingOrderId){
+      // Light rebuild — just update the banner without redrawing the list.
+      const banner = $('#edit-banner-host');
+      if (banner){
+        const rush = isRush(e.target.value);
+        banner.classList.toggle('rush', rush);
+        banner.innerHTML = rush
+          ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
+            ' days. Saving will send a request to Funkified for approval; the order is unchanged until we confirm.'
+          : 'Editing a pending order. Saving will commit the changes immediately and email Funkified.';
+      }
+      updateCartBadge();
+    }
+  });
 
   $('#cart-list').addEventListener('click', (e) => {
     const row = e.target.closest('.cart-item');
@@ -651,6 +949,10 @@
 
   async function placeOrder(){
     if (state.cart.size === 0) return;
+    if (!state.placedBy){
+      toast('Set your name first (top right)', true);
+      return;
+    }
     const dropoffWhen = $('#f-dropoff-when').value.trim();
     const address     = $('#f-address').value.trim();
     if (!dropoffWhen){
@@ -664,11 +966,21 @@
       return;
     }
 
+    // Rush window confirmation. For NEW orders this is a soft heads-up
+    // about likely rush fees; for EDITS the banner already explains
+    // that submission goes to approval, so we skip the extra confirm.
+    if (!state.editingOrderId && isRush(dropoffWhen)){
+      const ok = confirm('This order is within ' + RUSH_WINDOW_DAYS +
+        ' days of today — rush fees are likely.\n\nOK to proceed?');
+      if (!ok) return;
+    }
+
     const items = [];
     state.cart.forEach(it => items.push({ name: it.name, qty: it.qty }));
 
-    const payload = {
+    const basePayload = {
       deviceId: clientId(),                       // long-term browser id (for traceability)
+      placedBy:       state.placedBy,
       dropoffWhen,
       pickupWhen:     $('#f-pickup-when').value.trim(),
       dropoffAddress: address,
@@ -676,27 +988,45 @@
       items
     };
 
-    $('#btn-place').disabled = true;
-    $('#btn-place').textContent = 'Placing…';
+    const btn = $('#btn-place');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = state.editingOrderId ? 'Saving…' : 'Placing…';
     try {
-      const res = await api('clientorder', payload);
+      let res;
+      if (state.editingOrderId){
+        res = await api('clientupdateorder', Object.assign({ orderId: state.editingOrderId }, basePayload));
+      } else {
+        res = await api('clientorder', basePayload);
+      }
       if (!res || !res.success){
         toast((res && res.error) || 'Order failed', true);
         return;
       }
-      $('#success-oid').textContent = 'Order ID · ' + (res.orderId || '');
+      // Different success messages for edit-applied vs edit-request vs new.
+      if (res.requiresApproval){
+        toast('Edit request sent to Funkified — order unchanged until we approve.');
+      } else if (res.edited){
+        toast('Order updated.');
+      } else {
+        $('#success-oid').textContent = 'Order ID · ' + (res.orderId || '');
+        showScreen('scr-success');
+      }
+      state.editingOrderId = null;
       state.cart.clear();
       updateCartBadge();
       closeDrawer();
       clearCheckoutForm();
-      showScreen('scr-success');
-      // Refresh catalogue in background so next order sees fresh availability.
+      // Refresh both catalogue (availability changed) and pending list.
       refreshCatalogue();
+      refreshPendingOrders();
     } catch(e){
       toast('Network error — please try again', true);
     } finally {
-      $('#btn-place').disabled = false;
-      $('#btn-place').textContent = 'Place order';
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+      // updateCartBadge will recompute the right label next time.
+      updateCartBadge();
     }
   }
 
@@ -730,6 +1060,7 @@
   }
 
   // ── kick off ──
+  loadName();
   autoUnlock();
 })();
 </script>

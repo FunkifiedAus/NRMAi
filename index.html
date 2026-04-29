@@ -269,6 +269,26 @@
   /* ── Topbar name chip ── */
   #btn-name{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+  /* ── Category headers in the catalogue grid ── */
+  .cat-header{
+    grid-column:1/-1;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;
+    padding:14px 0 6px;border-bottom:1px solid var(--line);margin-top:4px;font-weight:600;
+  }
+  .cat-header:first-child{margin-top:0;padding-top:4px}
+
+  /* ── Item description (notes from Inventory) ── */
+  .card .desc{color:#cfcfcf;font-size:11px;line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+    margin-top:-2px;}
+  .card .thumb{cursor:zoom-in}
+
+  /* ── Photo lightbox ── */
+  .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;
+    display:none;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:14px;cursor:zoom-out}
+  .photo-lightbox.show{display:flex}
+  .photo-lightbox img{max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+  .photo-lightbox-cap{color:#fff;font-size:14px;text-align:center;max-width:80%}
+
   @media (max-width:520px){
     .grid{grid-template-columns:repeat(2,1fr);gap:10px}
     .card .name{font-size:13px;min-height:32px}
@@ -366,6 +386,12 @@
       <label for="f-address">Delivery address <span style="color:var(--danger)">*</span></label>
       <input id="f-address" type="text" placeholder="Street, suburb, state" />
 
+      <label for="f-contact-name">Contact name <span style="color:var(--danger)">*</span></label>
+      <input id="f-contact-name" type="text" placeholder="Who do we ask for on arrival?" autocomplete="name" />
+
+      <label for="f-contact-phone">Contact phone <span style="color:var(--danger)">*</span></label>
+      <input id="f-contact-phone" type="tel" placeholder="04xx xxx xxx" autocomplete="tel" />
+
       <label for="f-notes">Access notes</label>
       <textarea id="f-notes" placeholder="Loading dock, contact name &amp; number, parking, lift code…"></textarea>
     </div>
@@ -380,6 +406,12 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Photo lightbox -->
+<div id="photo-lightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
+  <img id="photo-lightbox-img" alt=""/>
+  <div class="photo-lightbox-cap" id="photo-lightbox-cap"></div>
+</div>
 
 <script>
 (() => {
@@ -668,8 +700,24 @@
       return;
     }
 
+    // Group by category (Inventory's "Type" field). Items with no type
+    // fall under "Other" so they still render rather than disappearing.
+    const sorted = items.slice().sort((a, b) => {
+      const ac = String(a.type || 'Other').toLowerCase();
+      const bc = String(b.type || 'Other').toLowerCase();
+      if (ac !== bc) return ac < bc ? -1 : 1;
+      return String(a.name).localeCompare(String(b.name));
+    });
+
     const html = ['<div class="grid">'];
-    for (const it of items){
+    let lastCat = null;
+    for (const it of sorted){
+      const cat = (it.type || 'Other').trim() || 'Other';
+      if (cat !== lastCat){
+        // Section header that spans the full grid width.
+        html.push(`<div class="cat-header">${esc(cat)}</div>`);
+        lastCat = cat;
+      }
       const inCart = state.cart.get(it.name);
       const avail = Number(it.available) || 0;
       const pending = Number(it.pending) || 0;
@@ -682,16 +730,21 @@
       const cityLine = it.city
         ? `<div class="meta">📍 ${esc(it.city)}</div>`
         : '';
+      // New: description (Inventory.Notes) shown under city. Truncated
+      // to 3 lines via CSS so cards stay roughly the same height.
+      const descLine = it.notes
+        ? `<div class="desc">${esc(it.notes)}</div>`
+        : '';
       const pendingLine = pending > 0
         ? `<div class="pending">${pending} in pending order${pending===1?'':'s'}</div>`
         : '';
       html.push(
         '<div class="card" data-name="' + esc(it.name) + '">',
-          `<div class="thumb ${thumbClass}" ${thumbStyle}></div>`,
+          `<div class="thumb ${thumbClass}" ${thumbStyle} data-thumb="${esc(it.thumbUrl||'')}" data-cap="${esc(it.name||'')}"></div>`,
           '<div class="body">',
             '<div class="name">' + esc(it.name) + '</div>',
-            (it.type ? '<div class="meta">' + esc(it.type) + '</div>' : ''),
             cityLine,
+            descLine,
             `<div class="avail ${availClass}">${avail} available</div>`,
             pendingLine,
             '<div class="qty-row">',
@@ -709,6 +762,21 @@
     html.push('</div>');
     root.innerHTML = html.join('');
   }
+
+  // ── Photo lightbox ──
+  function openPhotoLightbox(url, caption){
+    if (!url) return;
+    const lb = $('#photo-lightbox');
+    $('#photo-lightbox-img').src = url;
+    $('#photo-lightbox-cap').textContent = caption || '';
+    lb.classList.add('show');
+  }
+  function closePhotoLightbox(){
+    $('#photo-lightbox').classList.remove('show');
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePhotoLightbox();
+  });
 
   // ── Orders panel (Pending + Scheduled, grouped by month) ──
   function renderPendingPanel(){
@@ -832,11 +900,13 @@
       });
     }
     // Pre-fill the form fields.
-    $('#f-job-name').value     = order.jobName || '';
-    $('#f-dropoff-when').value = toLocalDateTimeInput(order.dropoffWhen);
-    $('#f-pickup-when').value  = toLocalDateTimeInput(order.pickupWhen);
-    $('#f-address').value      = order.address || '';
-    $('#f-notes').value        = order.notes || '';
+    $('#f-job-name').value      = order.jobName || '';
+    $('#f-dropoff-when').value  = toLocalDateTimeInput(order.dropoffWhen);
+    $('#f-pickup-when').value   = toLocalDateTimeInput(order.pickupWhen);
+    $('#f-address').value       = order.address || '';
+    $('#f-contact-name').value  = order.contactName || '';
+    $('#f-contact-phone').value = order.contactPhone || '';
+    $('#f-notes').value         = order.notes || '';
     openDrawer();
   }
 
@@ -864,6 +934,12 @@
 
   // ── catalogue interactions ──
   $('#catalogue').addEventListener('click', (e) => {
+    // Thumb click → open lightbox (no need for an item lookup).
+    const thumb = e.target.closest('.thumb');
+    if (thumb && thumb.dataset.thumb){
+      openPhotoLightbox(thumb.dataset.thumb, thumb.dataset.cap || '');
+      return;
+    }
     const card = e.target.closest('.card');
     if (!card) return;
     const name = card.dataset.name;
@@ -1131,6 +1207,8 @@
     const jobName     = $('#f-job-name').value.trim();
     const dropoffWhen = $('#f-dropoff-when').value.trim();
     const address     = $('#f-address').value.trim();
+    const contactName = $('#f-contact-name').value.trim();
+    const contactPhone = $('#f-contact-phone').value.trim();
     if (!jobName){
       toast('Job / event name is required', true);
       $('#f-job-name').focus();
@@ -1144,6 +1222,16 @@
     if (!address){
       toast('Delivery address is required', true);
       $('#f-address').focus();
+      return;
+    }
+    if (!contactName){
+      toast('Contact name is required', true);
+      $('#f-contact-name').focus();
+      return;
+    }
+    if (!contactPhone){
+      toast('Contact phone is required', true);
+      $('#f-contact-phone').focus();
       return;
     }
 
@@ -1163,6 +1251,8 @@
       deviceId: clientId(),                       // long-term browser id (for traceability)
       placedBy:       state.placedBy,
       jobName,
+      contactName,
+      contactPhone,
       dropoffWhen,
       pickupWhen:     $('#f-pickup-when').value.trim(),
       dropoffAddress: address,
@@ -1217,6 +1307,8 @@
     $('#f-dropoff-when').value = '';
     $('#f-pickup-when').value = '';
     $('#f-address').value = '';
+    $('#f-contact-name').value = '';
+    $('#f-contact-phone').value = '';
     $('#f-notes').value = '';
   }
 

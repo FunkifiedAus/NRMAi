@@ -224,29 +224,31 @@
   .pending-card:hover{border-color:var(--accent);transform:translateY(-1px)}
   .pending-card.locked{cursor:default;opacity:.95}
   .pending-card.locked:hover{transform:none}
-  /* Whole-card tinting by status */
+  /* Whole-card tinting by status — darker, more solid, with high-
+     contrast status pill (black text on bright fill) so the word
+     "PENDING" / "SCHEDULED" pops cleanly on the dark card. */
   .pending-card.card-pending{
-    background:rgba(255,122,24,.10);
-    border-color:rgba(255,122,24,.45);
+    background:#5e3010;
+    border-color:#ff7a18;
   }
-  .pending-card.card-pending:hover{border-color:rgba(255,122,24,.7)}
+  .pending-card.card-pending:hover{border-color:#ffb26b}
   .pending-card.card-scheduled{
-    background:rgba(61,220,132,.09);
-    border-color:rgba(61,220,132,.45);
+    background:#1c4a2a;
+    border-color:#3ddc84;
   }
-  .pending-card.card-scheduled:hover{border-color:rgba(61,220,132,.45)}
+  .pending-card.card-scheduled:hover{border-color:#3ddc84}
   .pending-card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
   .pending-card .pill-status{
-    /* Default = Pending → orange */
-    background:rgba(255,122,24,.22);color:#ffb26b;border:1px solid rgba(255,122,24,.55);
-    padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
+    /* Pending → solid orange with black text for max readability */
+    background:#ff7a18;color:#0a0a0a;border:1px solid #ff7a18;
+    padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
   }
-  /* Scheduled → green (uses the .onsite modifier the renderer adds) */
+  /* Scheduled → solid green with black text */
   .pending-card .pill-status.onsite{
-    background:rgba(61,220,132,.18);color:#7df3ad;border-color:rgba(61,220,132,.55);
+    background:#3ddc84;color:#0a0a0a;border-color:#3ddc84;
   }
   .pending-card .pill-status.partial{
-    background:rgba(255,178,107,.15);color:#ffb26b;border-color:rgba(255,178,107,.5);
+    background:#ffb26b;color:#0a0a0a;border-color:#ffb26b;
   }
   .pending-card .pill-lock{
     background:rgba(154,154,154,.12);color:var(--muted);border:1px solid var(--line);
@@ -379,7 +381,7 @@
         <label for="s-pickup">Pick-up date &amp; time <span style="color:var(--danger)">*</span></label>
         <input id="s-pickup" type="datetime-local" />
       </div>
-      <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#ffffff;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to catalogue →</button>
+      <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#ffffff;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to order →</button>
       <button id="btn-setup-back" class="setup-back-btn">← Back to catalogue</button>
       <div class="err" id="setup-err"></div>
     </div>

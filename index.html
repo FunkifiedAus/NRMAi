@@ -337,20 +337,9 @@
     <button id="btn-name-setup" title="Change name"><span id="name-chip-setup">—</span></button>
   </header>
   <main>
-    <!-- Pending orders panel lives here so it's always reachable
-         without needing fresh dates. -->
-    <section id="pending-panel" style="margin-bottom:16px">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
-        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
-        <span class="count" id="pending-count" style="flex:1"></span>
-        <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
-      </div>
-      <div id="pending-list" class="pending-list"></div>
-    </section>
-
     <div class="setup-card">
       <h1 style="margin:0 0 4px">Place a new order</h1>
-      <p class="sub">When and where? Item availability on the next page is calculated against your dates — including a 3-day transport buffer (1 day for in-city jobs).</p>
+      <p class="sub">A few details about your event so we know what's available.</p>
       <div class="form">
         <label for="s-job">Job / event name <span style="color:var(--danger)">*</span></label>
         <input id="s-job" type="text" placeholder="e.g. Spring Launch — Carriageworks" />
@@ -380,7 +369,18 @@
   </header>
 
   <main>
-    <!-- Setup summary banner: shows current job/city/dates with a Change link. -->
+    <!-- Pending orders panel — always visible above the catalogue. -->
+    <section id="pending-panel" style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
+        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
+        <span class="count" id="pending-count" style="flex:1"></span>
+        <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
+      </div>
+      <div id="pending-list" class="pending-list"></div>
+    </section>
+
+    <!-- Setup summary banner: empty state nudges user to set dates,
+         filled state shows job/city/dates with a Change link. -->
     <div class="setup-summary" id="setup-summary"></div>
 
     <div class="search-row">
@@ -409,7 +409,7 @@
     <div class="tick">✓</div>
     <h1>Order received</h1>
     <div class="oid" id="success-oid"></div>
-    <div class="msg">Your order has been sent to the events team. You'll hear back shortly with delivery details.</div>
+    <div class="msg">Your order has been sent to the events team. You'll hear back shortly with further details.</div>
     <button id="btn-new-order">Place another order</button>
   </div>
 </div>
@@ -583,7 +583,10 @@
     }
     state._nameSubmittedOnce = false;
     setName(n);
-    showScreen('scr-setup');
+    showScreen('scr-catalogue');
+    if (!state.catalogue.length) loadCatalogueForSetup();
+    renderSetupSummary();
+    refreshPendingOrders();
   }
 
   // ── network ──
@@ -664,17 +667,21 @@
     } catch(_) { state.passcode = ''; }
   }
 
-  // After successful auth: name first, then setup screen (which now
-  // gates the catalogue). Setup → continue → catalogue with date-aware
-  // availability.
+  // After successful auth: name first, then catalogue (browseable
+  // immediately). Setup is asked for the FIRST time the user tries to
+  // add an item — they can scroll/search before that.
   function enterApp(){
     if (!state.placedBy){
       $('#name-input').value = '';
       $('#name-err').textContent = '';
       showScreen('scr-name');
     } else {
-      showScreen('scr-setup');
+      showScreen('scr-catalogue');
+      // Load catalogue without dates so items show with simple
+      // availability. Setting dates later re-fetches in date-aware mode.
+      loadCatalogueForSetup();
     }
+    renderSetupSummary();
     refreshPendingOrders();
   }
 
@@ -752,20 +759,49 @@
       if (!ok){ err.textContent = 'Could not load catalogue. Try again.'; return; }
       renderSetupSummary();
       showScreen('scr-catalogue');
+      // If the user tapped Add on an item before setup was done, drop
+      // it in the cart now. They came here BECAUSE they wanted to add.
+      if (state._pendingAddName){
+        const target = state._pendingAddName;
+        const wantQty = state._pendingAddQty || 1;
+        state._pendingAddName = null;
+        state._pendingAddQty = null;
+        const it = state.catalogue.find(x => x.name === target);
+        if (it){
+          const avail = Number(it.available) || 0;
+          if (avail > 0){
+            const qty = Math.min(Math.max(1, wantQty), avail);
+            state.cart.set(it.name, {
+              name: it.name,
+              qty: qty,
+              thumbUrl: it.thumbUrl || '',
+              available: avail
+            });
+            updateCartBadge();
+            renderCatalogue();
+            toast('Added ' + qty + ' × ' + it.name);
+          } else {
+            toast('No ' + it.name + ' available for these dates', true);
+          }
+        }
+      }
     } finally {
       btn.disabled = false; btn.textContent = 'Continue to catalogue →';
     }
   }
 
-  // Reload the catalogue using the current setup. Returns true on success.
+  // Load the catalogue. If setup is filled, request date-aware
+  // availability; otherwise fall back to the legacy "total in stock"
+  // numbers so the user can still browse and search before commit.
   async function loadCatalogueForSetup(){
     try {
-      const data = await api('clientcatalogue', {
+      const params = state.setup.jobName ? {
         dropoffWhen: state.setup.dropoffWhen,
         pickupWhen:  state.setup.pickupWhen,
         city:        state.setup.city,
         excludeOrderId: state.editingOrderId || ''
-      });
+      } : {};
+      const data = await api('clientcatalogue', params);
       if (!data || !data.success) return false;
       state.catalogue = data.items || [];
       renderCatalogue();
@@ -777,24 +813,38 @@
     const host = $('#setup-summary');
     if (!host) return;
     const s = state.setup;
-    if (!s.jobName){ host.innerHTML = ''; return; }
-    host.innerHTML = `
-      <div class="info">
-        <strong>${esc(s.jobName)}</strong>
-        <span class="muted"> · ${esc(s.city)}</span><br>
-        <span class="muted">${esc(fmtDateNice(s.dropoffWhen))} → ${esc(fmtDateNice(s.pickupWhen))}</span>
-      </div>
-      <button id="btn-change-setup">Change</button>`;
+    if (!s.jobName){
+      // Empty state — prompt to set dates. Items are still browseable;
+      // setup is required at the moment of Add.
+      host.innerHTML = `
+        <div class="info">
+          <strong>📅 Set your event dates</strong>
+          <br><span class="muted">Browse items below — we'll ask for dates when you go to add the first one.</span>
+        </div>
+        <button id="btn-change-setup">Set dates</button>`;
+    } else {
+      host.innerHTML = `
+        <div class="info">
+          <strong>${esc(s.jobName)}</strong>
+          <span class="muted"> · ${esc(s.city)}</span><br>
+          <span class="muted">${esc(fmtDateNice(s.dropoffWhen))} → ${esc(fmtDateNice(s.pickupWhen))}</span>
+        </div>
+        <button id="btn-change-setup">Change</button>`;
+    }
     const btn = host.querySelector('#btn-change-setup');
-    if (btn) btn.addEventListener('click', () => {
-      // Pre-fill the setup form with current values, then go back.
-      $('#s-job').value     = s.jobName || '';
-      $('#s-city').value    = s.city || '';
-      $('#s-dropoff').value = toLocalDateTimeInput(s.dropoffWhen);
-      $('#s-pickup').value  = toLocalDateTimeInput(s.pickupWhen);
-      $('#setup-err').textContent = '';
-      showScreen('scr-setup');
-    });
+    if (btn) btn.addEventListener('click', openSetup);
+  }
+
+  // Open the setup screen, pre-filling whatever's currently in state.
+  // Called from the banner button and from the Add gate.
+  function openSetup(){
+    const s = state.setup;
+    $('#s-job').value     = s.jobName || '';
+    $('#s-city').value    = s.city || '';
+    $('#s-dropoff').value = toLocalDateTimeInput(s.dropoffWhen);
+    $('#s-pickup').value  = toLocalDateTimeInput(s.pickupWhen);
+    $('#setup-err').textContent = '';
+    showScreen('scr-setup');
   }
 
   // ── catalogue render ──
@@ -1096,6 +1146,17 @@
     if (e.target.matches('.add')){
       const avail = Number(item.available) || 0;
       if (avail === 0) return;
+      // Setup gate: don't let people build a cart without dates set,
+      // because availability is meaningless until dates are chosen.
+      // Remember the item they tried to add so it lands in the cart
+      // automatically once setup is submitted.
+      if (!state.setup.jobName){
+        state._pendingAddName = item.name;
+        state._pendingAddQty  = parseInt(input.value, 10) || 1;
+        toast('Set your event dates first');
+        openSetup();
+        return;
+      }
       const qty = Math.min(Math.max(1, parseInt(input.value,10) || 1), avail);
       state.cart.set(item.name, {
         name: item.name,
@@ -1456,7 +1517,18 @@
   }
 
   $('#btn-new-order').addEventListener('click', () => {
-    refreshCatalogue();
+    // Reset everything so the next order really is fresh — no carry-
+    // over of the previous job's setup, cart, or edit state.
+    state.cart.clear();
+    state.setup = { jobName: '', city: '', dropoffWhen: '', pickupWhen: '' };
+    state.editingOrderId = null;
+    state._pendingAddName = null;
+    state._pendingAddQty = null;
+    clearCheckoutForm();
+    updateCartBadge();
+    renderSetupSummary();
+    refreshPendingOrders();
+    loadCatalogueForSetup(); // legacy mode — no dates yet
     showScreen('scr-catalogue');
   });
 

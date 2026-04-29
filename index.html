@@ -270,13 +270,14 @@
   #btn-name, #btn-name-setup{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
   /* ── Setup card (job + dates + city) ── */
-  .setup-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
-  .setup-card h1{font-size:18px;margin:0 0 4px}
-  .setup-card .sub{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.45}
-  .setup-card .form label{display:block;color:var(--muted);font-size:12px;margin:10px 0 4px}
-  .setup-card .form input{width:100%;padding:11px 12px;background:var(--panel2);color:var(--text);
+  .setup-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px;color:#ffffff}
+  .setup-card h1{font-size:18px;margin:0 0 4px;color:#ffffff}
+  .setup-card .sub{font-size:13px;color:#cbcbcb;margin:0 0 14px;line-height:1.45}
+  .setup-card .form label{display:block;color:#cbcbcb;font-size:12px;margin:10px 0 4px}
+  .setup-card .form input{width:100%;padding:11px 12px;background:var(--panel2);color:#ffffff;
     border:1px solid var(--line);border-radius:10px;font-size:15px}
   .setup-card .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+  .setup-card #btn-setup-go{color:#ffffff !important}
 
   /* ── Setup summary banner on the catalogue ── */
   .setup-summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -353,7 +354,8 @@
         <label for="s-pickup">Pick-up date &amp; time <span style="color:var(--danger)">*</span></label>
         <input id="s-pickup" type="datetime-local" />
       </div>
-      <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#0a0a0a;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to catalogue →</button>
+      <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#ffffff;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to catalogue →</button>
+      <button id="btn-setup-back" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:#ffffff;font-weight:600;font-size:14px;cursor:pointer;margin-top:8px">← Back to catalogue</button>
       <div class="err" id="setup-err"></div>
     </div>
   </main>
@@ -737,6 +739,14 @@
 
   // ── Setup → catalogue ──
   $('#btn-setup-go').addEventListener('click', submitSetup);
+  $('#btn-setup-back').addEventListener('click', () => {
+    // Don't save anything from the form — they're going back without
+    // applying changes. Drop any pending-add intent so it doesn't fire
+    // on the next setup attempt.
+    state._pendingAddName = null;
+    state._pendingAddQty = null;
+    showScreen('scr-catalogue');
+  });
   async function submitSetup(){
     const job  = $('#s-job').value.trim();
     const city = $('#s-city').value.trim();
@@ -1003,6 +1013,9 @@
       const cls = ['pending-card'];
       if (rush) cls.push('rush');
       if (isScheduled) cls.push('locked');
+      const cityLine = o.deliveryCity ? `📍 ${esc(o.deliveryCity)}` : '';
+      const addrLine = o.address ? esc(o.address) : '';
+      const locParts = [cityLine, addrLine].filter(Boolean).join(' · ');
       return `
         <div class="${cls.join(' ')}" data-orderid="${esc(o.orderId)}" data-status="${esc(o.status)}">
           <div class="row1">
@@ -1012,7 +1025,7 @@
             <span class="oid">${esc(o.orderId)}</span>
           </div>
           <div class="row2">${titleLine}</div>
-          <div class="row3"><strong>${fmtDateNice(o.dropoffWhen)}</strong> · ${esc(o.address || '—')}</div>
+          <div class="row3"><strong>${fmtDateNice(o.dropoffWhen)}</strong>${locParts ? ' · ' + locParts : ''}</div>
           <div class="row3">${lineCount} item${lineCount===1?'':'s'} · ${units} units</div>
           ${placed ? `<div class="placed">${placed}</div>` : ''}
         </div>`;
@@ -1533,9 +1546,38 @@
   });
 
   // ── service worker ──
+  // Combined with skipWaiting + clients.claim in sw.js, this listener
+  // makes deploys land on every device automatically — no cache-clear
+  // ritual. When a new SW takes control of this page, we reload once.
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(()=>{});
+      navigator.serviceWorker.register('./sw.js').then(reg => {
+        // If a new SW is found while we're running, ask it to activate
+        // immediately. The 'controllerchange' handler below catches the
+        // takeover and reloads with the new version.
+        reg.addEventListener('updatefound', () => {
+          const incoming = reg.installing;
+          if (!incoming) return;
+          incoming.addEventListener('statechange', () => {
+            if (incoming.state === 'installed' && navigator.serviceWorker.controller){
+              incoming.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        });
+      }).catch(()=>{});
+      let _refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (_refreshing) return;
+        _refreshing = true;
+        window.location.reload();
+      });
+      // Light update probe on tab focus — catches deploys that landed
+      // while the device was locked.
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && navigator.serviceWorker.controller){
+          navigator.serviceWorker.getRegistration().then(reg => reg && reg.update());
+        }
+      });
     });
   }
 

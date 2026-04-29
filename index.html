@@ -267,7 +267,25 @@
   .edit-banner strong{color:var(--text)}
 
   /* ── Topbar name chip ── */
-  #btn-name{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #btn-name, #btn-name-setup{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ── Setup card (job + dates + city) ── */
+  .setup-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+  .setup-card h1{font-size:18px;margin:0 0 4px}
+  .setup-card .sub{font-size:13px;color:var(--muted);margin:0 0 14px;line-height:1.45}
+  .setup-card .form label{display:block;color:var(--muted);font-size:12px;margin:10px 0 4px}
+  .setup-card .form input{width:100%;padding:11px 12px;background:var(--panel2);color:var(--text);
+    border:1px solid var(--line);border-radius:10px;font-size:15px}
+  .setup-card .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+
+  /* ── Setup summary banner on the catalogue ── */
+  .setup-summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .setup-summary .info{flex:1;min-width:0;font-size:13px;line-height:1.4}
+  .setup-summary .info strong{color:var(--text)}
+  .setup-summary .info .muted{color:var(--muted)}
+  .setup-summary button{background:transparent;border:1px solid var(--line);color:var(--accent);
+    font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer}
 
   /* ── Category headers in the catalogue grid ── */
   .cat-header{
@@ -311,6 +329,47 @@
   </div>
 </div>
 
+<!-- ── Setup (gates the catalogue) ── -->
+<div class="screen" id="scr-setup">
+  <header class="topbar">
+    <div class="logo">NRMA<span>i</span> · Orders</div>
+    <div class="grow"></div>
+    <button id="btn-name-setup" title="Change name"><span id="name-chip-setup">—</span></button>
+  </header>
+  <main>
+    <!-- Pending orders panel lives here so it's always reachable
+         without needing fresh dates. -->
+    <section id="pending-panel" style="margin-bottom:16px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
+        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
+        <span class="count" id="pending-count" style="flex:1"></span>
+        <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
+      </div>
+      <div id="pending-list" class="pending-list"></div>
+    </section>
+
+    <div class="setup-card">
+      <h1 style="margin:0 0 4px">Place a new order</h1>
+      <p class="sub">When and where? Item availability on the next page is calculated against your dates — including a 3-day transport buffer (1 day for in-city jobs).</p>
+      <div class="form">
+        <label for="s-job">Job / event name <span style="color:var(--danger)">*</span></label>
+        <input id="s-job" type="text" placeholder="e.g. Spring Launch — Carriageworks" />
+
+        <label for="s-city">Delivery city <span style="color:var(--danger)">*</span></label>
+        <input id="s-city" type="text" placeholder="e.g. Sydney" autocomplete="address-level2" />
+
+        <label for="s-dropoff">Drop-off date &amp; time <span style="color:var(--danger)">*</span></label>
+        <input id="s-dropoff" type="datetime-local" />
+
+        <label for="s-pickup">Pick-up date &amp; time <span style="color:var(--danger)">*</span></label>
+        <input id="s-pickup" type="datetime-local" />
+      </div>
+      <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#0a0a0a;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to catalogue →</button>
+      <div class="err" id="setup-err"></div>
+    </div>
+  </main>
+</div>
+
 <!-- ── Catalogue ── -->
 <div class="screen" id="scr-catalogue">
   <header class="topbar">
@@ -321,15 +380,8 @@
   </header>
 
   <main>
-    <!-- Pending orders panel — always visible, with empty/loading states. -->
-    <section id="pending-panel" style="margin-bottom:16px">
-      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
-        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
-        <span class="count" id="pending-count" style="flex:1"></span>
-        <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
-      </div>
-      <div id="pending-list" class="pending-list"></div>
-    </section>
+    <!-- Setup summary banner: shows current job/city/dates with a Change link. -->
+    <div class="setup-summary" id="setup-summary"></div>
 
     <div class="search-row">
       <input id="search" type="search" placeholder="Search items…" />
@@ -374,17 +426,10 @@
     <div id="cart-empty" class="state">Your cart is empty. Add items from the catalogue.</div>
 
     <div class="form" id="checkout-form">
-      <label for="f-job-name">Job / event name <span style="color:var(--danger)">*</span></label>
-      <input id="f-job-name" type="text" placeholder="e.g. Spring Launch — Carriageworks" maxlength="80" />
+      <div id="cart-setup-recap" class="muted" style="font-size:12px;margin-bottom:8px"></div>
 
-      <label for="f-dropoff-when">Drop-off date &amp; time <span style="color:var(--danger)">*</span></label>
-      <input id="f-dropoff-when" type="datetime-local" />
-
-      <label for="f-pickup-when">Pick-up date &amp; time</label>
-      <input id="f-pickup-when" type="datetime-local" />
-
-      <label for="f-address">Delivery address <span style="color:var(--danger)">*</span></label>
-      <input id="f-address" type="text" placeholder="Street, suburb, state" />
+      <label for="f-address">Delivery address (street + suburb) <span style="color:var(--danger)">*</span></label>
+      <input id="f-address" type="text" placeholder="Street, suburb, postcode" />
 
       <label for="f-contact-name">Contact name <span style="color:var(--danger)">*</span></label>
       <input id="f-contact-name" type="text" placeholder="Who do we ask for on arrival?" autocomplete="name" />
@@ -393,7 +438,7 @@
       <input id="f-contact-phone" type="tel" placeholder="04xx xxx xxx" autocomplete="tel" />
 
       <label for="f-notes">Access notes</label>
-      <textarea id="f-notes" placeholder="Loading dock, contact name &amp; number, parking, lift code…"></textarea>
+      <textarea id="f-notes" placeholder="Loading dock, parking, lift code, anything we should know on arrival…"></textarea>
     </div>
   </div>
   <footer>
@@ -436,7 +481,15 @@
     pendingOrders: [],  // [{orderId,status,dropoffWhen,...,items:[]}]
     cart: new Map(),    // name -> {name, qty, thumbUrl, available, pending}
     filter: '',
-    editingOrderId: null // when set, cart drawer is in edit mode
+    editingOrderId: null, // when set, place-order calls clientupdateorder
+    // Setup state — captured BEFORE the catalogue loads. Determines
+    // date-aware availability and gets attached to every order.
+    setup: {
+      jobName: '',
+      city: '',
+      dropoffWhen: '',
+      pickupWhen: ''
+    }
   };
 
   // ── tiny helpers ──
@@ -486,8 +539,11 @@
     updateNameChip();
   }
   function updateNameChip(){
+    const txt = state.placedBy || 'Set name';
     const chip = $('#name-chip');
-    if (chip) chip.textContent = state.placedBy || 'Set name';
+    if (chip) chip.textContent = txt;
+    const chipS = $('#name-chip-setup');
+    if (chipS) chipS.textContent = txt;
   }
   function fmtDateNice(s){
     if (!s) return '—';
@@ -510,18 +566,16 @@
   // Name modal
   $('#btn-save-name').addEventListener('click', saveNameAndContinue);
   $('#name-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveNameAndContinue(); });
-  $('#btn-name').addEventListener('click', () => {
+  function openNameEdit(){
     $('#name-input').value = state.placedBy;
     $('#name-err').textContent = '';
     showScreen('scr-name');
-  });
+  }
+  $('#btn-name').addEventListener('click', openNameEdit);
+  $('#btn-name-setup').addEventListener('click', openNameEdit);
   function saveNameAndContinue(){
     const n = $('#name-input').value.trim();
     if (!n){ $('#name-err').textContent = 'Enter your full name to continue.'; return; }
-    // Soft-validate: looks like a full name (first + last). Allow any
-    // single-word value through if the user really means it — but we
-    // nudge them once before accepting, since a single word is almost
-    // always a typo or a first-name-only.
     if (!/\s/.test(n) && !state._nameSubmittedOnce){
       $('#name-err').textContent = 'Please include first and last name (or click again to confirm).';
       state._nameSubmittedOnce = true;
@@ -529,7 +583,7 @@
     }
     state._nameSubmittedOnce = false;
     setName(n);
-    showScreen('scr-catalogue');
+    showScreen('scr-setup');
   }
 
   // ── network ──
@@ -610,18 +664,16 @@
     } catch(_) { state.passcode = ''; }
   }
 
-  // After successful auth: ensure we have a person name on file, render
-  // the catalogue, and pull this client's pending orders to the top.
+  // After successful auth: name first, then setup screen (which now
+  // gates the catalogue). Setup → continue → catalogue with date-aware
+  // availability.
   function enterApp(){
-    renderCatalogue();
     if (!state.placedBy){
-      // First time on this device — ask for a name before showing the
-      // catalogue. The user can change it any time from the topbar.
       $('#name-input').value = '';
       $('#name-err').textContent = '';
       showScreen('scr-name');
     } else {
-      showScreen('scr-catalogue');
+      showScreen('scr-setup');
     }
     refreshPendingOrders();
   }
@@ -674,6 +726,75 @@
     const [y, m] = key.split('-');
     const d = new Date(Number(y), Number(m)-1, 1);
     return d.toLocaleString('en-AU', { month: 'long', year: 'numeric' });
+  }
+
+  // ── Setup → catalogue ──
+  $('#btn-setup-go').addEventListener('click', submitSetup);
+  async function submitSetup(){
+    const job  = $('#s-job').value.trim();
+    const city = $('#s-city').value.trim();
+    const dropoff = $('#s-dropoff').value.trim();
+    const pickup  = $('#s-pickup').value.trim();
+    const err = $('#setup-err');
+    err.textContent = '';
+    if (!job)     { err.textContent = 'Job name is required.'; return; }
+    if (!city)    { err.textContent = 'Delivery city is required.'; return; }
+    if (!dropoff) { err.textContent = 'Drop-off date & time is required.'; return; }
+    if (!pickup)  { err.textContent = 'Pick-up date & time is required.'; return; }
+    if (Date.parse(pickup) < Date.parse(dropoff)){
+      err.textContent = 'Pick-up must be on or after drop-off.'; return;
+    }
+    state.setup = { jobName: job, city: city, dropoffWhen: dropoff, pickupWhen: pickup };
+    const btn = $('#btn-setup-go');
+    btn.disabled = true; btn.textContent = 'Loading availability…';
+    try {
+      const ok = await loadCatalogueForSetup();
+      if (!ok){ err.textContent = 'Could not load catalogue. Try again.'; return; }
+      renderSetupSummary();
+      showScreen('scr-catalogue');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Continue to catalogue →';
+    }
+  }
+
+  // Reload the catalogue using the current setup. Returns true on success.
+  async function loadCatalogueForSetup(){
+    try {
+      const data = await api('clientcatalogue', {
+        dropoffWhen: state.setup.dropoffWhen,
+        pickupWhen:  state.setup.pickupWhen,
+        city:        state.setup.city,
+        excludeOrderId: state.editingOrderId || ''
+      });
+      if (!data || !data.success) return false;
+      state.catalogue = data.items || [];
+      renderCatalogue();
+      return true;
+    } catch(_) { return false; }
+  }
+
+  function renderSetupSummary(){
+    const host = $('#setup-summary');
+    if (!host) return;
+    const s = state.setup;
+    if (!s.jobName){ host.innerHTML = ''; return; }
+    host.innerHTML = `
+      <div class="info">
+        <strong>${esc(s.jobName)}</strong>
+        <span class="muted"> · ${esc(s.city)}</span><br>
+        <span class="muted">${esc(fmtDateNice(s.dropoffWhen))} → ${esc(fmtDateNice(s.pickupWhen))}</span>
+      </div>
+      <button id="btn-change-setup">Change</button>`;
+    const btn = host.querySelector('#btn-change-setup');
+    if (btn) btn.addEventListener('click', () => {
+      // Pre-fill the setup form with current values, then go back.
+      $('#s-job').value     = s.jobName || '';
+      $('#s-city').value    = s.city || '';
+      $('#s-dropoff').value = toLocalDateTimeInput(s.dropoffWhen);
+      $('#s-pickup').value  = toLocalDateTimeInput(s.pickupWhen);
+      $('#setup-err').textContent = '';
+      showScreen('scr-setup');
+    });
   }
 
   // ── catalogue render ──
@@ -880,33 +1001,47 @@
     enterEditMode(order);
   });
 
-  function enterEditMode(order){
+  async function enterEditMode(order){
     state.editingOrderId = order.orderId;
-    // Replace the cart with this order's items.
+    // Pre-fill setup with this order's data so date-aware availability
+    // is computed for the same window.
+    state.setup = {
+      jobName:     order.jobName || '',
+      city:        order.deliveryCity || '',
+      dropoffWhen: order.dropoffWhen || '',
+      pickupWhen:  order.pickupWhen || ''
+    };
+    // Pre-fill the cart drawer fields the user will see at checkout.
+    $('#f-address').value       = order.address || '';
+    $('#f-contact-name').value  = order.contactName || '';
+    $('#f-contact-phone').value = order.contactPhone || '';
+    $('#f-notes').value         = order.notes || '';
+    // Load catalogue with date-aware availability EXCLUDING this order
+    // (so its own qtys don't count against itself).
+    const ok = await loadCatalogueForSetup();
+    if (!ok){
+      toast('Could not load order — please try again', true);
+      state.editingOrderId = null;
+      return;
+    }
+    // Now seed the cart from the order's items.
     state.cart.clear();
     for (const it of order.items){
-      // Look up the live availability/pending for each item from
-      // the catalogue. Fall back to the qty itself if unknown.
       const cat = state.catalogue.find(c => c.name === it.name) || {};
       state.cart.set(it.name, {
         name: it.name,
         qty: Number(it.qty) || 1,
         thumbUrl: cat.thumbUrl || '',
-        // Edit mode: the order's existing qty is already deducted from
-        // available, so add it back so the user can keep that level
-        // or increase it.
+        // Server already excluded this order's commitments, so cat.available
+        // already represents what THIS order can take. Add the existing qty
+        // back so the user can hold or increase the line.
         available: (Number(cat.available) || 0) + (Number(it.qty) || 0),
         pending: Number(cat.pending) || 0
       });
     }
-    // Pre-fill the form fields.
-    $('#f-job-name').value      = order.jobName || '';
-    $('#f-dropoff-when').value  = toLocalDateTimeInput(order.dropoffWhen);
-    $('#f-pickup-when').value   = toLocalDateTimeInput(order.pickupWhen);
-    $('#f-address').value       = order.address || '';
-    $('#f-contact-name').value  = order.contactName || '';
-    $('#f-contact-phone').value = order.contactPhone || '';
-    $('#f-notes').value         = order.notes || '';
+    renderSetupSummary();
+    showScreen('scr-catalogue');
+    updateCartBadge();
     openDrawer();
   }
 
@@ -1003,6 +1138,7 @@
 
   function openDrawer(){
     renderCart();
+    renderCartRecap();
     $('#drawer').classList.add('open');
     $('#drawer-bg').classList.add('open');
   }
@@ -1026,7 +1162,7 @@
     const btn = $('#btn-place');
     btn.disabled = lines === 0;
     if (state.editingOrderId){
-      const rush = isRush($('#f-dropoff-when').value);
+      const rush = isRush(state.setup.dropoffWhen);
       btn.textContent = rush ? 'Submit edit request' : 'Save changes';
     } else {
       btn.textContent = 'Place order';
@@ -1050,8 +1186,7 @@
     const oldDel = $('#btn-delete-order');
     if (oldDel) oldDel.remove();
     if (state.editingOrderId){
-      const dropoff = $('#f-dropoff-when').value;
-      const rush = isRush(dropoff);
+      const rush = isRush(state.setup.dropoffWhen);
       const banner = document.createElement('div');
       banner.id = 'edit-banner-host';
       banner.className = 'edit-banner' + (rush ? ' rush' : '');
@@ -1104,20 +1239,13 @@
     updateCartBadge();
   }
 
-  // Re-render the edit banner whenever the drop-off date changes,
-  // so the rush wording flips on/off as the user picks a date.
+  // (The drop-off date now lives on the setup screen, so the cart
+  // drawer no longer needs to react to date input changes — the banner
+  // is set once when the drawer opens.)
   document.addEventListener('input', (e) => {
-    if (e.target && e.target.id === 'f-dropoff-when' && state.editingOrderId){
-      // Light rebuild — just update the banner without redrawing the list.
+    if (false){
       const banner = $('#edit-banner-host');
-      if (banner){
-        const rush = isRush(e.target.value);
-        banner.classList.toggle('rush', rush);
-        banner.innerHTML = rush
-          ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
-            ' days. Saving will send a request to the events team for approval; the order is unchanged until we confirm.'
-          : 'Editing a pending order. Saving will commit the changes immediately and email the events team.';
-      }
+      if (banner){ /* unused */ }
       updateCartBadge();
     }
   });
@@ -1204,21 +1332,17 @@
       toast('Set your name first (top right)', true);
       return;
     }
-    const jobName     = $('#f-job-name').value.trim();
-    const dropoffWhen = $('#f-dropoff-when').value.trim();
+    // Job/dates/city come from the setup screen.
+    const s = state.setup;
+    if (!s.jobName || !s.city || !s.dropoffWhen || !s.pickupWhen){
+      toast('Setup is incomplete — tap Change to set job + dates first', true);
+      return;
+    }
+    const jobName     = s.jobName;
+    const dropoffWhen = s.dropoffWhen;
     const address     = $('#f-address').value.trim();
     const contactName = $('#f-contact-name').value.trim();
     const contactPhone = $('#f-contact-phone').value.trim();
-    if (!jobName){
-      toast('Job / event name is required', true);
-      $('#f-job-name').focus();
-      return;
-    }
-    if (!dropoffWhen){
-      toast('Drop-off date & time is required', true);
-      $('#f-dropoff-when').focus();
-      return;
-    }
     if (!address){
       toast('Delivery address is required', true);
       $('#f-address').focus();
@@ -1253,8 +1377,9 @@
       jobName,
       contactName,
       contactPhone,
+      city:           state.setup.city,
       dropoffWhen,
-      pickupWhen:     $('#f-pickup-when').value.trim(),
+      pickupWhen:     state.setup.pickupWhen,
       dropoffAddress: address,
       notes:          $('#f-notes').value.trim(),
       items
@@ -1303,13 +1428,21 @@
   }
 
   function clearCheckoutForm(){
-    $('#f-job-name').value = '';
-    $('#f-dropoff-when').value = '';
-    $('#f-pickup-when').value = '';
     $('#f-address').value = '';
     $('#f-contact-name').value = '';
     $('#f-contact-phone').value = '';
     $('#f-notes').value = '';
+  }
+  function renderCartRecap(){
+    const host = $('#cart-setup-recap');
+    if (!host) return;
+    const s = state.setup;
+    if (!s.jobName){ host.innerHTML = ''; return; }
+    host.innerHTML =
+      '<strong style="color:var(--text)">' + esc(s.jobName) + '</strong>' +
+      ' · ' + esc(s.city) +
+      '<br><span style="color:var(--muted)">' + esc(fmtDateNice(s.dropoffWhen)) +
+      ' → ' + esc(fmtDateNice(s.pickupWhen)) + '</span>';
   }
 
   async function refreshCatalogue(){

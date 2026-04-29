@@ -4,7 +4,7 @@
    - Passes through Apps Script + Drive requests without touching them,
      so passcode / catalogue / order calls always hit live data.
 */
-const VERSION = 'nrmai-portal-v15-2026-04-28-input-readable';
+const VERSION = 'nrmai-portal-v16-2026-04-28-active-orders-dates';
 const APP_SHELL = [
   './',
   './index.html',

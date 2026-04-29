@@ -403,7 +403,7 @@
     <!-- Pending orders panel — always visible above the catalogue. -->
     <section id="pending-panel" style="margin-bottom:16px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
-        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your pending orders</h2>
+        <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your active orders</h2>
         <span class="count" id="pending-count" style="flex:1"></span>
         <button id="btn-refresh-pending" class="small-link" style="background:transparent;border:none;color:var(--accent);font-size:12px;cursor:pointer;padding:0">Refresh</button>
       </div>
@@ -1060,6 +1060,9 @@
       const cityLine = cityValue ? `📍 ${esc(cityValue)}` : '';
       const addrLine = o.address ? esc(o.address) : '';
       const locParts = [cityLine, addrLine].filter(Boolean).join(' · ');
+      const dateRange = o.pickupWhen
+        ? `<strong>${fmtDateNice(o.dropoffWhen)}</strong> → <strong>${fmtDateNice(o.pickupWhen)}</strong>`
+        : `<strong>${fmtDateNice(o.dropoffWhen)}</strong>`;
       return `
         <div class="${cls.join(' ')}" data-orderid="${esc(o.orderId)}" data-status="${esc(o.status)}">
           <div class="row1">
@@ -1069,7 +1072,8 @@
             <span class="oid">${esc(o.orderId)}</span>
           </div>
           <div class="row2">${titleLine}</div>
-          <div class="row3"><strong>${fmtDateNice(o.dropoffWhen)}</strong>${locParts ? ' · ' + locParts : ''}</div>
+          <div class="row3">${dateRange}</div>
+          ${locParts ? `<div class="row3">${locParts}</div>` : ''}
           <div class="row3">${lineCount} item${lineCount===1?'':'s'} · ${units} units</div>
           ${placed ? `<div class="placed">${placed}</div>` : ''}
         </div>`;

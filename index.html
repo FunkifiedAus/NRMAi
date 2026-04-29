@@ -769,11 +769,19 @@
   // ── Setup → catalogue ──
   $('#btn-setup-go').addEventListener('click', submitSetup);
   $('#btn-setup-back').addEventListener('click', () => {
-    // Don't save anything from the form — they're going back without
-    // applying changes. Drop any pending-add intent so it doesn't fire
-    // on the next setup attempt.
     state._pendingAddName = null;
     state._pendingAddQty = null;
+    // If the user came in via an edit and is now bailing out, treat
+    // back as "cancel this edit" — clear the seeded cart and the
+    // pre-filled fields so the next interaction starts fresh.
+    if (state.editingOrderId){
+      state.editingOrderId = null;
+      state.cart.clear();
+      state.setup = { jobName: '', city: '', dropoffWhen: '', pickupWhen: '' };
+      clearCheckoutForm();
+      updateCartBadge();
+      renderSetupSummary();
+    }
     showScreen('scr-catalogue');
   });
   async function submitSetup(){
@@ -798,6 +806,11 @@
       if (!ok){ err.textContent = 'Could not load catalogue. Try again.'; return; }
       renderSetupSummary();
       showScreen('scr-catalogue');
+      // Editing an existing order — pop the cart drawer open so the
+      // user can review/save right after confirming dates.
+      if (state.editingOrderId){
+        openDrawer();
+      }
       // If the user tapped Add on an item before setup was done, drop
       // it in the cart now. They came here BECAUSE they wanted to add.
       if (state._pendingAddName){
@@ -1114,28 +1127,28 @@
 
   async function enterEditMode(order){
     state.editingOrderId = order.orderId;
-    // Pre-fill setup with this order's data so date-aware availability
-    // is computed for the same window.
+    // Pre-fill setup with this order's data — user lands on the setup
+    // screen first so they can change the dates / city if they want.
     state.setup = {
       jobName:     order.jobName || '',
       city:        order.deliveryCity || '',
       dropoffWhen: order.dropoffWhen || '',
       pickupWhen:  order.pickupWhen || ''
     };
-    // Pre-fill the cart drawer fields the user will see at checkout.
     $('#f-address').value       = order.address || '';
     $('#f-contact-name').value  = order.contactName || '';
     $('#f-contact-phone').value = order.contactPhone || '';
     $('#f-notes').value         = order.notes || '';
-    // Load catalogue with date-aware availability EXCLUDING this order
-    // (so its own qtys don't count against itself).
+    // Pre-load catalogue with date-aware availability EXCLUDING this
+    // order so its own qtys don't subtract from themselves.
     const ok = await loadCatalogueForSetup();
     if (!ok){
       toast('Could not load order — please try again', true);
       state.editingOrderId = null;
       return;
     }
-    // Now seed the cart from the order's items.
+    // Seed cart from the order's items so they pop into the drawer
+    // when the user continues through setup.
     state.cart.clear();
     for (const it of order.items){
       const cat = state.catalogue.find(c => c.name === it.name) || {};
@@ -1143,17 +1156,17 @@
         name: it.name,
         qty: Number(it.qty) || 1,
         thumbUrl: cat.thumbUrl || '',
-        // Server already excluded this order's commitments, so cat.available
-        // already represents what THIS order can take. Add the existing qty
-        // back so the user can hold or increase the line.
         available: (Number(cat.available) || 0) + (Number(it.qty) || 0),
         pending: Number(cat.pending) || 0
       });
     }
-    renderSetupSummary();
-    showScreen('scr-catalogue');
     updateCartBadge();
-    openDrawer();
+    renderSetupSummary();
+    // Open the setup screen pre-filled. Continuing from there lands
+    // them on the catalogue with the cart drawer open (handled in
+    // submitSetup) — so date editing is now the FIRST step, not a
+    // hidden "Change" link.
+    openSetup();
   }
 
   function exitEditMode(){
@@ -1578,8 +1591,8 @@
   }
 
   $('#btn-new-order').addEventListener('click', () => {
-    // Reset everything so the next order really is fresh — no carry-
-    // over of the previous job's setup, cart, or edit state.
+    // Hard reset so the next order is completely fresh — no carry-over
+    // of the previous job's setup, cart, drawer state, or edit flag.
     state.cart.clear();
     state.setup = { jobName: '', city: '', dropoffWhen: '', pickupWhen: '' };
     state.editingOrderId = null;
@@ -1587,9 +1600,14 @@
     state._pendingAddQty = null;
     clearCheckoutForm();
     updateCartBadge();
+    renderCart();
+    renderCartRecap();
     renderSetupSummary();
+    // Make sure the cart drawer isn't still open underneath.
+    $('#drawer').classList.remove('open');
+    $('#drawer-bg').classList.remove('open');
     refreshPendingOrders();
-    loadCatalogueForSetup(); // legacy mode — no dates yet
+    loadCatalogueForSetup();
     showScreen('scr-catalogue');
   });
 

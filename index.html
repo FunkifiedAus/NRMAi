@@ -219,18 +219,35 @@
   }
   .pending-card{
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
-    padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s;
+    padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s,background-color .15s;
   }
   .pending-card:hover{border-color:var(--accent);transform:translateY(-1px)}
-  .pending-card.locked{cursor:default;opacity:.92}
-  .pending-card.locked:hover{border-color:var(--line);transform:none}
+  .pending-card.locked{cursor:default;opacity:.95}
+  .pending-card.locked:hover{transform:none}
+  /* Whole-card tinting by status */
+  .pending-card.card-pending{
+    background:rgba(255,122,24,.10);
+    border-color:rgba(255,122,24,.45);
+  }
+  .pending-card.card-pending:hover{border-color:rgba(255,122,24,.7)}
+  .pending-card.card-scheduled{
+    background:rgba(61,220,132,.09);
+    border-color:rgba(61,220,132,.45);
+  }
+  .pending-card.card-scheduled:hover{border-color:rgba(61,220,132,.45)}
   .pending-card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
   .pending-card .pill-status{
-    background:rgba(255,122,24,.15);color:var(--accent2);border:1px solid rgba(255,122,24,.4);
+    /* Default = Pending → orange */
+    background:rgba(255,122,24,.22);color:#ffb26b;border:1px solid rgba(255,122,24,.55);
     padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
   }
-  .pending-card .pill-status.onsite{background:rgba(61,220,132,.12);color:var(--ok);border-color:rgba(61,220,132,.4)}
-  .pending-card .pill-status.partial{background:rgba(255,178,107,.12);color:var(--accent2);border-color:rgba(255,178,107,.4)}
+  /* Scheduled → green (uses the .onsite modifier the renderer adds) */
+  .pending-card .pill-status.onsite{
+    background:rgba(61,220,132,.18);color:#7df3ad;border-color:rgba(61,220,132,.55);
+  }
+  .pending-card .pill-status.partial{
+    background:rgba(255,178,107,.15);color:#ffb26b;border-color:rgba(255,178,107,.5);
+  }
   .pending-card .pill-lock{
     background:rgba(154,154,154,.12);color:var(--muted);border:1px solid var(--line);
     padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;letter-spacing:.3px;
@@ -239,7 +256,8 @@
   .pending-card .row2{font-size:15px;margin-bottom:2px}
   .pending-card .row3{color:var(--muted);font-size:12px;margin-top:2px}
   .pending-card .placed{color:var(--muted);font-size:12px;margin-top:2px}
-  .pending-card.rush{border-color:rgba(255,77,77,.5)}
+  /* Rush border wins over status tint so the warning is unmistakable. */
+  .pending-card.rush{border-color:rgba(255,77,77,.6) !important}
   .pending-card.rush .pill-rush{
     background:rgba(255,77,77,.12);color:var(--danger);border:1px solid rgba(255,77,77,.4);
     padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
@@ -278,6 +296,13 @@
     border:1px solid var(--line);border-radius:10px;font-size:15px}
   .setup-card .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
   .setup-card #btn-setup-go{color:#ffffff !important}
+  .setup-back-btn{
+    width:100%;padding:12px;
+    background:#1c1c1c !important;color:#ffffff !important;
+    border:1px solid #2a2a2a !important;border-radius:10px;
+    font-weight:600;font-size:14px;cursor:pointer;margin-top:8px;
+  }
+  .setup-back-btn:hover{background:#222 !important}
 
   /* ── Setup summary banner on the catalogue ── */
   .setup-summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -355,7 +380,7 @@
         <input id="s-pickup" type="datetime-local" />
       </div>
       <button class="primary" id="btn-setup-go" style="width:100%;padding:14px;border:none;border-radius:10px;background:var(--accent);color:#ffffff;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px">Continue to catalogue →</button>
-      <button id="btn-setup-back" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:transparent;color:#ffffff;font-weight:600;font-size:14px;cursor:pointer;margin-top:8px">← Back to catalogue</button>
+      <button id="btn-setup-back" class="setup-back-btn">← Back to catalogue</button>
       <div class="err" id="setup-err"></div>
     </div>
   </main>
@@ -1011,9 +1036,24 @@
         ? `<strong>${esc(o.jobName)}</strong>`
         : `<strong>${esc(o.orderId)}</strong>`;
       const cls = ['pending-card'];
+      if (o.status === 'Pending')   cls.push('card-pending');
+      if (o.status === 'Scheduled') cls.push('card-scheduled');
       if (rush) cls.push('rush');
       if (isScheduled) cls.push('locked');
-      const cityLine = o.deliveryCity ? `📍 ${esc(o.deliveryCity)}` : '';
+      // City line: prefer the explicit Delivery City field. For older
+      // orders (placed before that field existed) try to lift the
+      // suburb/city out of the address — last comma-separated chunk
+      // before any postcode is usually the suburb.
+      const guessCity = (addr) => {
+        if (!addr) return '';
+        const parts = String(addr).split(',').map(s => s.trim()).filter(Boolean);
+        if (!parts.length) return '';
+        const last = parts[parts.length - 1].replace(/\b\d{4}\b/g, '').replace(/\b(NSW|VIC|QLD|SA|WA|TAS|ACT|NT)\b/gi, '').trim();
+        if (last) return last;
+        return parts[parts.length - 1];
+      };
+      const cityValue = o.deliveryCity || guessCity(o.address);
+      const cityLine = cityValue ? `📍 ${esc(cityValue)}` : '';
       const addrLine = o.address ? esc(o.address) : '';
       const locParts = [cityLine, addrLine].filter(Boolean).join(' · ');
       return `

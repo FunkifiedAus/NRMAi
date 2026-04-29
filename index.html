@@ -224,19 +224,17 @@
   .pending-card:hover{border-color:var(--accent);transform:translateY(-1px)}
   .pending-card.locked{cursor:default;opacity:.95}
   .pending-card.locked:hover{transform:none}
-  /* Whole-card tinting by status — darker, more solid, with high-
-     contrast status pill (black text on bright fill) so the word
-     "PENDING" / "SCHEDULED" pops cleanly on the dark card. */
+  /* Cards use the default dark panel background. Status is conveyed
+     by the solid coloured pill at the top of each card and a subtle
+     border tint — no full-card wash. */
   .pending-card.card-pending{
-    background:#5e3010;
-    border-color:#ff7a18;
+    border-color:rgba(255,122,24,.45);
   }
-  .pending-card.card-pending:hover{border-color:#ffb26b}
+  .pending-card.card-pending:hover{border-color:rgba(255,122,24,.7)}
   .pending-card.card-scheduled{
-    background:#1c4a2a;
-    border-color:#3ddc84;
+    border-color:rgba(61,220,132,.45);
   }
-  .pending-card.card-scheduled:hover{border-color:#3ddc84}
+  .pending-card.card-scheduled:hover{border-color:rgba(61,220,132,.7)}
   .pending-card .row1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
   .pending-card .pill-status{
     /* Pending → solid orange with black text for max readability */
@@ -294,8 +292,12 @@
   .setup-card h1{font-size:18px;margin:0 0 4px;color:#ffffff}
   .setup-card .sub{font-size:13px;color:#cbcbcb;margin:0 0 14px;line-height:1.45}
   .setup-card .form label{display:block;color:#cbcbcb;font-size:12px;margin:10px 0 4px}
-  .setup-card .form input{width:100%;padding:11px 12px;background:var(--panel2);color:#ffffff;
+  /* Force a known-readable dark-bg + light-text combo so brand.css
+     can't accidentally turn the input white-on-white. */
+  .setup-card .form input{width:100%;padding:11px 12px;
+    background:#1c1c1c !important;color:#f4f4f4 !important;
     border:1px solid var(--line);border-radius:10px;font-size:15px}
+  .setup-card .form input::placeholder{color:#9a9a9a}
   .setup-card .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
   .setup-card #btn-setup-go{color:#ffffff !important}
   .setup-back-btn{

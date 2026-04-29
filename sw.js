@@ -4,7 +4,7 @@
    - Passes through Apps Script + Drive requests without touching them,
      so passcode / catalogue / order calls always hit live data.
 */
-const VERSION = 'nrmai-portal-v9-2026-04-28-browse-first';
+const VERSION = 'nrmai-portal-v10-2026-04-28-auto-update';
 const APP_SHELL = [
   './',
   './index.html',
@@ -22,9 +22,15 @@ const PASSTHROUGH_HOSTS = [
 ];
 
 self.addEventListener('install', event => {
+  // Pre-fill the cache with the shell, then immediately move into the
+  // "waiting" state and skip it — i.e. activate this SW as soon as
+  // install completes, even if older tabs are still open. Combined
+  // with clients.claim() on activate, this means a new deploy reaches
+  // every device on the next page load with no cache-clear ritual.
   event.waitUntil(
     caches.open(VERSION).then(cache => cache.addAll(APP_SHELL)).catch(() => {})
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {

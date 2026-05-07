@@ -1,15 +1,13 @@
-/* NRMAi Order Portal — Service Worker v2 (NRMAi brand)
-   - Caches the app shell for fast, reliable loading.
-   - Network-first for same-origin GETs so deploys land immediately.
-   - Passes through Apps Script + Drive requests without touching them,
-     so passcode / catalogue / order calls always hit live data.
+/* Funkified — Service Worker v6
+   - Caches the app shell so the PWA loads offline.
+   - Network-first for same-origin GETs (so deploys land fast).
+   - Passes through POSTs and external endpoints without touching them.
+   - Supports skipWaiting on demand.
 */
-const VERSION = 'nrmai-portal-v17-2026-04-28-edit-dates-reset';
+const VERSION = 'funkified-v17-2026-05-08-type-picker';
 const APP_SHELL = [
   './',
   './index.html',
-  './brand.css',
-  './logo.svg',
   './manifest.json',
   'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 ];
@@ -18,15 +16,14 @@ const PASSTHROUGH_HOSTS = [
   'script.google.com',
   'script.googleusercontent.com',
   'drive.google.com',
-  'googleusercontent.com'
+  'googleusercontent.com',
+  'nominatim.openstreetmap.org'
 ];
 
 self.addEventListener('install', event => {
-  // Pre-fill the cache with the shell, then immediately move into the
-  // "waiting" state and skip it — i.e. activate this SW as soon as
-  // install completes, even if older tabs are still open. Combined
-  // with clients.claim() on activate, this means a new deploy reaches
-  // every device on the next page load with no cache-clear ritual.
+  // Activate this SW as soon as install completes — combined with
+  // clients.claim() on activate, this means deploys propagate without
+  // needing the user to clear cache or close tabs.
   event.waitUntil(
     caches.open(VERSION).then(cache => cache.addAll(APP_SHELL)).catch(() => {})
   );
@@ -49,14 +46,17 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // POSTs (order submissions) go straight to the network.
+  // Never intercept non-GET. Apps Script POSTs must go straight to the network
+  // so the client-side drain / idempotency layer stays in charge.
   if (req.method !== 'GET') return;
 
-  // Don't cache or intercept backend / image hosts.
+  // Passthrough for third-party endpoints we don't want to cache.
   if (PASSTHROUGH_HOSTS.some(h => url.hostname.endsWith(h))) return;
 
+  // Network-first strategy for same-origin + allowlisted GETs.
   event.respondWith(
     fetch(req).then(res => {
+      // Cache successful basic responses for next offline session.
       if (res && res.status === 200 && (res.type === 'basic' || res.type === 'cors')) {
         const copy = res.clone();
         caches.open(VERSION).then(c => c.put(req, copy)).catch(() => {});

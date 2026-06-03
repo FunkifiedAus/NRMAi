@@ -1,7 +1,7 @@
 {
   "name": "NRMAi — Order Portal",
   "short_name": "NRMAi Orders",
-  "description": "Browse the NRMAi catalogue and place orders with Funkified.",
+  "description": "Browse the NRMAi catalogue and place orders.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

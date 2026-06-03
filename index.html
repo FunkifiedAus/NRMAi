@@ -320,12 +320,24 @@
 
   /* ── Setup summary banner on the catalogue ── */
   .setup-summary{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .setup-summary .info{flex:1;min-width:0;font-size:13px;line-height:1.4}
   .setup-summary .info strong{color:var(--text)}
   .setup-summary .info .muted{color:var(--muted)}
   .setup-summary button{background:transparent;border:1px solid var(--line);color:var(--accent);
     font-size:12px;padding:6px 12px;border-radius:999px;cursor:pointer}
+  /* "Create new order" empty-state variant — stacks vertically with a
+     full-width orange CTA button styled like the Edit-order buttons on
+     pending cards, so the same affordance is consistent across the page. */
+  .setup-summary.create-new{flex-direction:column;align-items:stretch;gap:12px}
+  .setup-summary.create-new .info{font-size:14px}
+  .setup-summary.create-new .info strong{font-size:16px}
+  .setup-summary .btn-create-new{
+    background:var(--accent);color:#ffffff;border:0;padding:11px 14px;border-radius:8px;
+    font-weight:700;font-size:14px;cursor:pointer;width:100%;font-family:inherit;
+  }
+  .setup-summary .btn-create-new:hover{filter:brightness(1.08)}
+  .setup-summary .btn-create-new:active{transform:scale(.98)}
 
   /* ── Category headers in the catalogue grid ── */
   .cat-header{
@@ -418,7 +430,13 @@
   </header>
 
   <main>
-    <!-- Pending orders panel — always visible above the catalogue. -->
+    <!-- Setup summary banner: empty state is the "Create new order" CTA,
+         filled state shows the current draft job/city/dates with a
+         Change link. Sits at the top so starting a new order is the
+         first thing the user sees. -->
+    <div class="setup-summary" id="setup-summary"></div>
+
+    <!-- Pending + scheduled orders panel — below the Create CTA. -->
     <section id="pending-panel" style="margin-bottom:16px">
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;gap:10px">
         <h2 style="margin:0;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Your active orders</h2>
@@ -427,10 +445,6 @@
       </div>
       <div id="pending-list" class="pending-list"></div>
     </section>
-
-    <!-- Setup summary banner: empty state nudges user to set dates,
-         filled state shows job/city/dates with a Change link. -->
-    <div class="setup-summary" id="setup-summary"></div>
 
     <div class="search-row">
       <input id="search" type="search" placeholder="Search items…" />
@@ -885,15 +899,20 @@
     if (!host) return;
     const s = state.setup;
     if (!s.jobName){
-      // Empty state — prompt to set dates. Items are still browseable;
-      // setup is required at the moment of Add.
+      // Empty state — primary CTA to start a new order. Sits at the
+      // top of the catalogue page above the active orders list so
+      // "create" is the most visible action.
+      host.className = 'setup-summary create-new';
       host.innerHTML = `
         <div class="info">
-          <strong>📅 Set your event dates</strong>
-          <br><span class="muted">Browse items below — we'll ask for dates when you go to add the first one.</span>
+          <strong>📅 Create new order</strong>
+          <br><span class="muted">Set your event dates and location, then add items.</span>
         </div>
-        <button id="btn-change-setup">Set dates</button>`;
+        <button id="btn-change-setup" class="btn-create-new">+ Create new order</button>`;
     } else {
+      // Filled state — current draft setup, with a small "Change" link
+      // to edit dates / city without restarting the flow.
+      host.className = 'setup-summary';
       host.innerHTML = `
         <div class="info">
           <strong>${esc(s.jobName)}</strong>

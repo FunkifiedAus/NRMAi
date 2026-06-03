@@ -667,8 +667,12 @@
   }
 
   async function api(action, body){
+    // deviceId is the long-lived per-browser ID; the server uses it for
+    // lockout tracking, order ownership checks, and per-device rate
+    // limits. clientId is a fresh per-request UUID kept for idempotency.
     const payload = Object.assign(
-      { action, client: CLIENT, passcode: state.passcode, clientId: freshRequestId() },
+      { action, client: CLIENT, passcode: state.passcode,
+        clientId: freshRequestId(), deviceId: clientId() },
       body || {}
     );
     const res = await fetch(ENDPOINT, {
@@ -715,6 +719,11 @@
   }
 
   // Auto-unlock if a passcode is remembered from a previous session.
+  // If the server says the passcode is wrong, we clear the saved value
+  // (it was probably rotated). If the server says we're locked out,
+  // we KEEP the saved value (the passcode is probably right; we're
+  // just inside a cool-down window) and surface the message on the
+  // gate so the user knows what's going on.
   async function autoUnlock(){
     const saved = localStorage.getItem(STORAGE_PASSCODE);
     if (!saved) return;
@@ -724,7 +733,14 @@
       if (data && data.success){
         state.catalogue = data.items || [];
         enterApp();
+      } else if (data && data.lockout){
+        // Locked out — leave saved passcode alone, surface the message.
+        state.passcode = '';
+        const err = document.getElementById('gate-err');
+        if (err) err.textContent = data.error || 'Locked out — try again later.';
       } else {
+        // Genuine invalid passcode — likely rotated. Clear so the user
+        // sees the gate and can paste in the new one.
         state.passcode = '';
         localStorage.removeItem(STORAGE_PASSCODE);
       }

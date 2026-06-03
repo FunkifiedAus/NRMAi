@@ -648,7 +648,13 @@
     state._nameSubmittedOnce = false;
     setName(n);
     showScreen('scr-catalogue');
-    if (!state.catalogue.length) loadCatalogueForSetup();
+    // Paint whatever's cached so the grid isn't empty for a beat, then
+    // re-fetch + render. The previous "skip if cached" guard meant the
+    // grid stayed blank on first-time visits — catalogue was loaded
+    // during passcode unlock, so loadCatalogueForSetup() was skipped
+    // here and renderCatalogue() never ran.
+    if (state.catalogue.length) renderCatalogue();
+    loadCatalogueForSetup();
     renderSetupSummary();
     refreshPendingOrders();
   }
@@ -1248,15 +1254,20 @@
       state.editingOrderId = null;
       return;
     }
-    // Seed cart from the order's items so they pop into the drawer
-    // when the user continues through setup.
+    // Seed cart from the order's items. Each line item now carries its
+    // own thumbUrl from the server (so the cart drawer never has blank
+    // tiles even if the item has been re-tagged out of the visible
+    // catalogue). Catalogue match is still used for live availability +
+    // pending counts.
     state.cart.clear();
+    const norm = (s) => String(s || '').trim().toLowerCase();
     for (const it of order.items){
-      const cat = state.catalogue.find(c => c.name === it.name) || {};
+      const wantName = norm(it.name);
+      const cat = state.catalogue.find(c => norm(c.name) === wantName) || {};
       state.cart.set(it.name, {
         name: it.name,
         qty: Number(it.qty) || 1,
-        thumbUrl: cat.thumbUrl || '',
+        thumbUrl: it.thumbUrl || cat.thumbUrl || '',
         available: (Number(cat.available) || 0) + (Number(it.qty) || 0),
         pending: Number(cat.pending) || 0
       });

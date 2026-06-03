@@ -65,6 +65,17 @@
     background:var(--accent);color:#0a0a0a;font-weight:700;font-size:15px;cursor:pointer;
   }
   .gate .err{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px}
+  /* Show/hide passcode toggle on the gate input */
+  .pc-wrap{position:relative}
+  .pc-wrap input{padding-right:48px}
+  .pc-toggle{
+    position:absolute;right:6px;top:50%;transform:translateY(-50%);
+    width:40px;height:40px;border:0;background:transparent;color:var(--muted);
+    cursor:pointer;font-size:18px;padding:0;border-radius:8px;
+    -webkit-tap-highlight-color:transparent;line-height:1;
+  }
+  .pc-toggle:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .pc-toggle.shown{color:var(--accent)}
 
   /* ── Search ── */
   .search-row{
@@ -383,7 +394,10 @@
     <h1>NRMAi Order Portal</h1>
     <p class="sub">Enter your passcode to browse the catalogue and place an order.</p>
     <label for="pc">Passcode</label>
-    <input id="pc" type="password" autocomplete="off" spellcheck="false" />
+    <div class="pc-wrap">
+      <input id="pc" type="password" autocomplete="off" spellcheck="false" />
+      <button type="button" id="pc-toggle" class="pc-toggle" aria-label="Show passcode" aria-pressed="false" title="Show passcode">👁</button>
+    </div>
     <button class="primary" id="btn-unlock">Unlock</button>
     <div class="err" id="gate-err"></div>
   </div>
@@ -697,6 +711,26 @@
   // ── passcode gate ──
   $('#btn-unlock').addEventListener('click', tryUnlock);
   $('#pc').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+  // Show/hide passcode — eye toggle in the gate input. Flips the input
+  // between type="password" and type="text" so the user can verify
+  // what they pasted. Defaults to hidden every time the gate opens.
+  (function wirePasscodeToggle(){
+    const input = document.getElementById('pc');
+    const btn   = document.getElementById('pc-toggle');
+    if (!input || !btn) return;
+    btn.addEventListener('click', () => {
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.classList.toggle('shown', !showing);
+      btn.setAttribute('aria-pressed', String(!showing));
+      btn.setAttribute('aria-label', showing ? 'Show passcode' : 'Hide passcode');
+      btn.title = showing ? 'Show passcode' : 'Hide passcode';
+      btn.textContent = showing ? '👁' : '🙈';
+      // Keep focus on the input so typing flow isn't interrupted.
+      input.focus();
+    });
+  })();
 
   async function tryUnlock(){
     const pc = $('#pc').value.trim();
@@ -1206,7 +1240,7 @@
     list.innerHTML = groupOrder.map(monthHtml).join('') +
       '<div class="state" style="padding:14px;margin-top:10px;font-size:12px">' +
         'To change a <strong>Scheduled</strong> order, email ' +
-        '<a href="mailto:jacob@funkified.com.au" style="color:var(--accent)">jacob@funkified.com.au</a>.' +
+        '<a href="mailto:Tina.gasparini@mbcsww.com.au" style="color:var(--accent)">Tina.gasparini@mbcsww.com.au</a>.' +
       '</div>';
   }
 
@@ -1224,7 +1258,7 @@
     const order = state.pendingOrders.find(o => o.orderId === orderId);
     if (!order) return;
     if (order.status === 'Scheduled' || !order.editable){
-      toast('Scheduled — email jacob@funkified.com.au to change');
+      toast('Scheduled — email Tina.gasparini@mbcsww.com.au to change');
       return;
     }
     // Both routes (whole card OR Edit button) land in the same place.

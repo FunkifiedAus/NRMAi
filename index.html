@@ -269,6 +269,16 @@
   }
   .btn-delete:hover{background:rgba(255,77,77,.08)}
 
+  /* ── Edit button on Pending order cards — explicit, visible affordance
+        so users don't have to know the whole card is tappable. ── */
+  .pending-card .btn-edit{
+    background:var(--accent);color:#0a0a0a;border:0;padding:9px 14px;border-radius:8px;
+    font-weight:700;font-size:13px;cursor:pointer;width:100%;margin-top:10px;
+    font-family:inherit;
+  }
+  .pending-card .btn-edit:hover{filter:brightness(1.08)}
+  .pending-card .btn-edit:active{transform:scale(.98)}
+
   /* ── Pending count under availability ── */
   .card .pending{font-size:11px;color:var(--accent2);margin-top:-2px}
   .card .pending::before{content:'⏳ '}
@@ -334,8 +344,16 @@
   .photo-lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;
     display:none;align-items:center;justify-content:center;padding:20px;flex-direction:column;gap:14px;cursor:zoom-out}
   .photo-lightbox.show{display:flex}
-  .photo-lightbox img{max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+  .photo-lightbox img{max-width:100%;max-height:80vh;border-radius:12px;box-shadow:0 0 40px rgba(0,0,0,.6);
+    cursor:zoom-out}
   .photo-lightbox-cap{color:#fff;font-size:14px;text-align:center;max-width:80%}
+  /* Visible close button — sits in the top-right so mobile users
+     have an obvious tap target. ESC also works on desktop. */
+  .photo-lightbox-close{position:absolute;top:14px;right:14px;width:44px;height:44px;
+    border-radius:50%;border:0;background:rgba(255,255,255,.15);color:#fff;font-size:24px;
+    line-height:44px;text-align:center;cursor:pointer;font-family:inherit;padding:0;
+    -webkit-tap-highlight-color:transparent}
+  .photo-lightbox-close:active{background:rgba(255,255,255,.28)}
 
   @media (max-width:520px){
     .grid{grid-template-columns:repeat(2,1fr);gap:10px}
@@ -484,7 +502,8 @@
 <div class="toast" id="toast"></div>
 
 <!-- Photo lightbox -->
-<div id="photo-lightbox" class="photo-lightbox" onclick="closePhotoLightbox()">
+<div id="photo-lightbox" class="photo-lightbox">
+  <button type="button" class="photo-lightbox-close" aria-label="Close" data-lb-close>×</button>
   <img id="photo-lightbox-img" alt=""/>
   <div class="photo-lightbox-cap" id="photo-lightbox-cap"></div>
 </div>
@@ -923,11 +942,22 @@
       return;
     }
 
-    // Group by category (Inventory's "Type" field). Items with no type
-    // fall under "Other" so they still render rather than disappearing.
+    // Category display map. Legacy items tagged 'giveaways' show as
+    // 'Merchandise'; future items will be tagged 'merchandise' directly
+    // and also render as 'Merchandise'. Anything else falls back to its
+    // raw type (the .cat-header CSS uppercases it).
+    const displayCategory = (t) => {
+      const raw = String(t || 'Other').trim().toLowerCase();
+      if (raw === 'giveaways' || raw === 'giveaway' || raw === 'merchandise') return 'Merchandise';
+      if (!raw) return 'Other';
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    };
+
+    // Group by mapped category so 'giveaways' and 'merchandise' merge
+    // into a single 'Merchandise' section instead of appearing twice.
     const sorted = items.slice().sort((a, b) => {
-      const ac = String(a.type || 'Other').toLowerCase();
-      const bc = String(b.type || 'Other').toLowerCase();
+      const ac = displayCategory(a.type).toLowerCase();
+      const bc = displayCategory(b.type).toLowerCase();
       if (ac !== bc) return ac < bc ? -1 : 1;
       return String(a.name).localeCompare(String(b.name));
     });
@@ -935,7 +965,7 @@
     const html = ['<div class="grid">'];
     let lastCat = null;
     for (const it of sorted){
-      const cat = (it.type || 'Other').trim() || 'Other';
+      const cat = displayCategory(it.type);
       if (cat !== lastCat){
         // Section header that spans the full grid width.
         html.push(`<div class="cat-header">${esc(cat)}</div>`);
@@ -953,11 +983,11 @@
       const cityLine = it.city
         ? `<div class="meta">📍 ${esc(it.city)}</div>`
         : '';
-      // New: description (Inventory.Notes) shown under city. Truncated
-      // to 3 lines via CSS so cards stay roughly the same height.
-      const descLine = it.notes
-        ? `<div class="desc">${esc(it.notes)}</div>`
-        : '';
+      // Inventory.Notes is back-of-house — not safe to surface to
+      // clients. Item description on the card is intentionally blank
+      // for now; bring this back if/when a customer-facing description
+      // field gets added to the Inventory sheet.
+      const descLine = '';
       const pendingLine = pending > 0
         ? `<div class="pending">${pending} in pending order${pending===1?'':'s'}</div>`
         : '';
@@ -987,6 +1017,11 @@
   }
 
   // ── Photo lightbox ──
+  // Closes on: ESC key (desktop), X button (top-right), tapping the
+  // backdrop, OR tapping the image itself. On iOS Safari, click events
+  // on bare divs are unreliable, so we attach a single touchstart +
+  // click listener on the overlay rather than relying on inline onclick
+  // — that was the bug on mobile previously.
   function openPhotoLightbox(url, caption){
     if (!url) return;
     const lb = $('#photo-lightbox');
@@ -997,6 +1032,24 @@
   function closePhotoLightbox(){
     $('#photo-lightbox').classList.remove('show');
   }
+  (function wireLightboxClose(){
+    const lb = $('#photo-lightbox');
+    if (!lb) return;
+    // Every tap inside the lightbox closes it. The only thing inside
+    // is the X button, the image, the caption and the backdrop — all
+    // of which are valid "I'm done looking" surfaces.
+    const onTap = (e) => {
+      // Stop the tap from bleeding through to the card behind once the
+      // overlay disappears.
+      e.preventDefault();
+      e.stopPropagation();
+      closePhotoLightbox();
+    };
+    lb.addEventListener('click', onTap);
+    // touchend covers iOS PWA quirks where click sometimes doesn't fire
+    // on non-button elements until you tap twice.
+    lb.addEventListener('touchend', onTap, { passive: false });
+  })();
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closePhotoLightbox();
   });
@@ -1076,6 +1129,12 @@
       const dateRange = o.pickupWhen
         ? `<strong>${fmtDateNice(o.dropoffWhen)}</strong> → <strong>${fmtDateNice(o.pickupWhen)}</strong>`
         : `<strong>${fmtDateNice(o.dropoffWhen)}</strong>`;
+      // Edit button only shows for editable Pending orders. Scheduled
+      // orders are read-only here and route the user to email instead.
+      const showEdit = o.status === 'Pending' && o.editable;
+      const editBtn = showEdit
+        ? `<button type="button" class="btn-edit" data-edit="${esc(o.orderId)}">✏️ Edit order</button>`
+        : '';
       return `
         <div class="${cls.join(' ')}" data-orderid="${esc(o.orderId)}" data-status="${esc(o.status)}">
           <div class="row1">
@@ -1089,6 +1148,7 @@
           ${locParts ? `<div class="row3">${locParts}</div>` : ''}
           <div class="row3">${lineCount} item${lineCount===1?'':'s'} · ${units} units</div>
           ${placed ? `<div class="placed">${placed}</div>` : ''}
+          ${editBtn}
         </div>`;
     };
 
@@ -1109,9 +1169,13 @@
       '</div>';
   }
 
-  // Click a pending card → open the cart drawer pre-filled with that order.
-  // Scheduled cards are read-only — clicking them shows a toast pointing
-  // at the email instead of opening the drawer.
+  // Click a pending card (or its Edit button) → jump straight to the
+  // catalogue with this order's items in the cart and its dates/city
+  // already loaded. The catalogue has a "Change" button next to the
+  // setup summary for tweaking timings/location if needed, so users
+  // don't have to wade through the setup screen first.
+  // Scheduled cards are read-only — clicking them shows a toast
+  // pointing at the email instead.
   $('#pending-list').addEventListener('click', (e) => {
     const card = e.target.closest('.pending-card');
     if (!card) return;
@@ -1122,6 +1186,8 @@
       toast('Scheduled — email jacob@funkified.com.au to change');
       return;
     }
+    // Both routes (whole card OR Edit button) land in the same place.
+    // The button is just a clearer affordance.
     enterEditMode(order);
   });
 
@@ -1162,11 +1228,15 @@
     }
     updateCartBadge();
     renderSetupSummary();
-    // Open the setup screen pre-filled. Continuing from there lands
-    // them on the catalogue with the cart drawer open (handled in
-    // submitSetup) — so date editing is now the FIRST step, not a
-    // hidden "Change" link.
-    openSetup();
+    // Land directly on the catalogue — items, qtys, and the setup
+    // summary (with a Change button for timings + city) are all here.
+    // Skipping the setup page makes the common "I just want to tweak
+    // a quantity" loop two taps instead of five.
+    showScreen('scr-catalogue');
+    // Pop the cart drawer open so the ordered items are visible
+    // straight away — the user can edit/remove from the drawer or
+    // close it and scroll the catalogue to add more items.
+    try { openDrawer(); } catch (_) {}
   }
 
   function exitEditMode(){

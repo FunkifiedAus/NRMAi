@@ -558,7 +558,13 @@
   //  CONFIG — set ENDPOINT to the Apps Script Web App /exec URL.
   //  CLIENT is hard-coded so this build is NRMAi-specific.
   // ══════════════════════════════════════════════════════════════
-  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbwxhZiH_yrNp7oTWSht6qu7y5sWkKXnMTVAQyEXklnYXEbMQgYhacfhKU4ipJQ-rY6g8g/exec';
+  // Front the Apps Script Web App with a Cloudflare Worker so NRMA's
+  // corporate network doesn't see script.google.com and force SSO.
+  // The Worker itself just forwards to the Apps Script URL — backend
+  // logic + the Google Sheet remain the source of truth. To rotate
+  // the underlying Apps Script URL, edit only the Worker; this file
+  // doesn't need to change.
+  const ENDPOINT = 'https://nrmai-portal-proxy.jacob-masters.workers.dev/exec';
   const CLIENT = 'NRMAi';
   const STORAGE_PASSCODE = 'nrmai_pc_v1';
   const STORAGE_CLIENTID = 'nrmai_cid_v1';

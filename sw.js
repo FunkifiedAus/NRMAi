@@ -4,7 +4,7 @@
    - Passes through Apps Script + Drive requests without touching them,
      so passcode / catalogue / order calls always hit live data.
 */
-const VERSION = 'nrmai-portal-v28-2026-05-25-cloudflare-proxy';
+const VERSION = 'nrmai-portal-v29-2026-05-25-edit-dates-in-drawer';
 const APP_SHELL = [
   './',
   './index.html',

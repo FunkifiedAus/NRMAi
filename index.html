@@ -76,6 +76,16 @@
   }
   .pc-toggle:hover{color:var(--text);background:rgba(255,255,255,.04)}
   .pc-toggle.shown{color:var(--accent)}
+  /* Opt-in remember-me checkbox under the passcode field. Keeps the
+     auto-unlock behaviour available but no longer surprises iPhone
+     users with a brief gate-flash + jump on every page open. */
+  .remember-row{
+    display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);
+    margin:12px 0 0;cursor:pointer;user-select:none;
+  }
+  .remember-row input{width:auto;margin:0;cursor:pointer;
+    accent-color:var(--accent)}
+  .remember-row span{flex:1}
 
   /* ── Search ── */
   .search-row{
@@ -398,6 +408,10 @@
       <input id="pc" type="password" autocomplete="off" spellcheck="false" />
       <button type="button" id="pc-toggle" class="pc-toggle" aria-label="Show passcode" aria-pressed="false" title="Show passcode">👁</button>
     </div>
+    <label class="remember-row">
+      <input type="checkbox" id="pc-remember" />
+      <span>Remember passcode on this device</span>
+    </label>
     <button class="primary" id="btn-unlock">Unlock</button>
     <div class="err" id="gate-err"></div>
   </div>
@@ -486,7 +500,7 @@
     <div class="tick">✓</div>
     <h1>Order received</h1>
     <div class="oid" id="success-oid"></div>
-    <div class="msg">Your order has been sent to the events team. You'll hear back shortly with further details.</div>
+    <div class="msg">Your order has been sent to the logistics team. You'll hear back shortly with further details.</div>
     <button id="btn-new-order">Place another order</button>
   </div>
 </div>
@@ -548,6 +562,12 @@
   const CLIENT = 'NRMAi';
   const STORAGE_PASSCODE = 'nrmai_pc_v1';
   const STORAGE_CLIENTID = 'nrmai_cid_v1';
+  // Whether the user has opted in to remembering their passcode on
+  // this device. Defaults to false (we don't auto-save). Setting this
+  // on the gate via the checkbox controls whether tryUnlock writes
+  // STORAGE_PASSCODE on success, AND whether autoUnlock fires on next
+  // page open. Storing the preference itself is fine — it's a boolean.
+  const STORAGE_REMEMBER = 'nrmai_remember_v1';
   const STORAGE_NAME     = 'nrmai_name_v1';
   const RUSH_WINDOW_DAYS = 14; // matches CLIENT_CONFIG.RUSH_WINDOW_DAYS server-side
 
@@ -747,7 +767,16 @@
         err.textContent = data && data.error ? data.error : 'Invalid passcode.';
         return;
       }
-      localStorage.setItem(STORAGE_PASSCODE, pc);
+      // Persist the passcode ONLY if the user ticked Remember. Either
+      // way, persist the preference itself so the checkbox state is
+      // sticky next time they see the gate.
+      const remember = !!($('#pc-remember') && $('#pc-remember').checked);
+      try { localStorage.setItem(STORAGE_REMEMBER, remember ? '1' : '0'); } catch(_) {}
+      if (remember) {
+        try { localStorage.setItem(STORAGE_PASSCODE, pc); } catch(_) {}
+      } else {
+        try { localStorage.removeItem(STORAGE_PASSCODE); } catch(_) {}
+      }
       state.catalogue = data.items || [];
       enterApp();
     } catch(e) {
@@ -758,13 +787,22 @@
     }
   }
 
-  // Auto-unlock if a passcode is remembered from a previous session.
-  // If the server says the passcode is wrong, we clear the saved value
-  // (it was probably rotated). If the server says we're locked out,
-  // we KEEP the saved value (the passcode is probably right; we're
-  // just inside a cool-down window) and surface the message on the
-  // gate so the user knows what's going on.
+  // Pre-populate the Remember checkbox from the saved preference, then
+  // auto-unlock only if the user previously opted in. If they didn't
+  // tick Remember last time, we always show the gate — no silent
+  // login, no "flash of gate then jump" on iPhones, no surprise after
+  // a long break when the lockout window is active.
+  function applyRememberPreference(){
+    const cb = document.getElementById('pc-remember');
+    if (!cb) return false;
+    let saved = '0';
+    try { saved = localStorage.getItem(STORAGE_REMEMBER) || '0'; } catch(_) {}
+    cb.checked = (saved === '1');
+    return cb.checked;
+  }
   async function autoUnlock(){
+    const remembered = applyRememberPreference();
+    if (!remembered) return;  // user opted out — leave them at the gate
     const saved = localStorage.getItem(STORAGE_PASSCODE);
     if (!saved) return;
     state.passcode = saved;
@@ -1477,8 +1515,8 @@
       banner.className = 'edit-banner' + (rush ? ' rush' : '');
       banner.innerHTML = rush
         ? '<strong>Rush window</strong> — drop-off is within ' + RUSH_WINDOW_DAYS +
-          ' days. Saving will send a request to the events team for approval; the order is unchanged until we confirm.'
-        : 'Editing a pending order. Saving will commit the changes immediately and email the events team.';
+          ' days. Saving will send a request to the logistics team for approval; the order is unchanged until we confirm.'
+        : 'Editing a pending order. Saving will commit the changes immediately and email the logistics team.';
       list.parentNode.insertBefore(banner, list);
       // Delete button below the form — pending orders only.
       const del = document.createElement('button');
@@ -1580,7 +1618,7 @@
   // ── delete pending order ──
   async function deleteCurrentOrder(){
     if (!state.editingOrderId) return;
-    const ok = confirm('Delete this pending order? This is permanent and the events team will be notified.');
+    const ok = confirm('Are you sure you want to delete this pending order?\n\nThis action can\'t be undone — the logistics team will be notified.');
     if (!ok) return;
     const btn = $('#btn-delete-order');
     if (btn){ btn.disabled = true; btn.textContent = 'Deleting…'; }
@@ -1656,6 +1694,11 @@
     const items = [];
     state.cart.forEach(it => items.push({ name: it.name, qty: it.qty }));
 
+    // Snapshot the edit target at the moment of submit. If something
+    // wipes state.editingOrderId mid-flight (state reset, refresh,
+    // re-render), we still route to the update endpoint correctly.
+    const editTarget = state.editingOrderId || null;
+
     const basePayload = {
       deviceId: clientId(),                       // long-term browser id (for traceability)
       placedBy:       state.placedBy,
@@ -1667,17 +1710,22 @@
       pickupWhen:     state.setup.pickupWhen,
       dropoffAddress: address,
       notes:          $('#f-notes').value.trim(),
-      items
+      items,
+      // Safety belt: ALSO send editingOrderId on the create payload, so
+      // the server can defensively treat a "create" with an active edit
+      // as an update. Prevents the bug where a lost UI state silently
+      // spawns a duplicate Pending order on save.
+      editingOrderId: editTarget
     };
 
     const btn = $('#btn-place');
     const originalLabel = btn.textContent;
     btn.disabled = true;
-    btn.textContent = state.editingOrderId ? 'Saving…' : 'Placing…';
+    btn.textContent = editTarget ? 'Saving…' : 'Placing…';
     try {
       let res;
-      if (state.editingOrderId){
-        res = await api('clientupdateorder', Object.assign({ orderId: state.editingOrderId }, basePayload));
+      if (editTarget){
+        res = await api('clientupdateorder', Object.assign({ orderId: editTarget }, basePayload));
       } else {
         res = await api('clientorder', basePayload);
       }
@@ -1687,7 +1735,7 @@
       }
       // Different success messages for edit-applied vs edit-request vs new.
       if (res.requiresApproval){
-        toast('Edit request sent to the events team — order unchanged until we approve.');
+        toast('Edit request sent to the logistics team — order unchanged until we approve.');
       } else if (res.edited){
         toast('Order updated.');
       } else {

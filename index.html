@@ -314,6 +314,23 @@
     background:rgba(255,77,77,.08);border-color:rgba(255,77,77,.5);color:var(--danger);
   }
   .edit-banner strong{color:var(--text)}
+  /* Drawer header strip during edit mode: current dates + a button
+     that opens the setup screen. Lets the user retime the order
+     without having to find the Change link behind the drawer. */
+  .edit-meta{
+    background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;
+    flex-wrap:wrap;
+  }
+  .edit-meta .meta-info{flex:1;min-width:0;font-size:13px;line-height:1.45}
+  .edit-meta .meta-info .meta-dates{color:var(--text);font-weight:600}
+  .edit-meta .meta-info .meta-loc{color:var(--muted);font-size:12px;margin-top:2px}
+  .edit-meta button{
+    background:var(--accent);color:#ffffff;border:0;padding:9px 14px;border-radius:8px;
+    font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap;
+  }
+  .edit-meta button:hover{filter:brightness(1.08)}
+  .edit-meta button:active{transform:scale(.98)}
 
   /* ── Topbar name chip ── */
   #btn-name, #btn-name-setup{font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -904,16 +921,15 @@
   $('#btn-setup-back').addEventListener('click', () => {
     state._pendingAddName = null;
     state._pendingAddQty = null;
-    // If the user came in via an edit and is now bailing out, treat
-    // back as "cancel this edit" — clear the seeded cart and the
-    // pre-filled fields so the next interaction starts fresh.
+    // If we're mid-edit, Back returns to the cart drawer with the edit
+    // intact — users tapping Change to glance at dates and then Back
+    // shouldn't lose the whole edit. To actually cancel an edit, use
+    // "+ Create new order" or close the drawer and tap a different
+    // pending order.
     if (state.editingOrderId){
-      state.editingOrderId = null;
-      state.cart.clear();
-      state.setup = { jobName: '', city: '', dropoffWhen: '', pickupWhen: '' };
-      clearCheckoutForm();
-      updateCartBadge();
-      renderSetupSummary();
+      showScreen('scr-catalogue');
+      openDrawer();
+      return;
     }
     showScreen('scr-catalogue');
   });
@@ -1511,6 +1527,8 @@
     // submit button label too (see updateCartBadge).
     const existing = $('#edit-banner-host');
     if (existing) existing.remove();
+    const existingMeta = $('#edit-meta-host');
+    if (existingMeta) existingMeta.remove();
     // Remove any prior delete button before re-rendering.
     const oldDel = $('#btn-delete-order');
     if (oldDel) oldDel.remove();
@@ -1524,6 +1542,31 @@
           ' days. Saving will send a request to the logistics team for approval; the order is unchanged until we confirm.'
         : 'Editing a pending order. Saving will commit the changes immediately and email the logistics team.';
       list.parentNode.insertBefore(banner, list);
+
+      // Dates / location editor — sits right under the banner so users
+      // can retime an order without having to close the drawer to find
+      // the Change link on the setup-summary behind it.
+      const s = state.setup;
+      const meta = document.createElement('div');
+      meta.id = 'edit-meta-host';
+      meta.className = 'edit-meta';
+      meta.innerHTML =
+        '<div class="meta-info">' +
+          '<div class="meta-dates">📅 ' + esc(fmtDateNice(s.dropoffWhen)) +
+            ' → ' + esc(fmtDateNice(s.pickupWhen)) + '</div>' +
+          '<div class="meta-loc">📍 ' + esc(s.city || '—') +
+            ' · ' + esc(s.jobName || '—') + '</div>' +
+        '</div>' +
+        '<button type="button" id="btn-edit-meta">Change</button>';
+      list.parentNode.insertBefore(meta, list);
+      const editMetaBtn = meta.querySelector('#btn-edit-meta');
+      if (editMetaBtn) editMetaBtn.addEventListener('click', () => {
+        // Close the drawer so the setup form is visible underneath.
+        // submitSetup re-opens the drawer on save (existing behaviour).
+        closeDrawer();
+        openSetup();
+      });
+
       // Delete button below the form — pending orders only.
       const del = document.createElement('button');
       del.id = 'btn-delete-order';

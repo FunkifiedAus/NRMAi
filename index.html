@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#010C66" />
 <title>NRMAi — Order Portal</title>
 <link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -732,19 +735,35 @@
   async function api(action, body){
     // deviceId is the long-lived per-browser ID; the server uses it for
     // lockout tracking, order ownership checks, and per-device rate
-    // limits. clientId is a fresh per-request UUID kept for idempotency.
+    // limits. clientId is a fresh per-request UUID kept for idempotency
+    // — except for order submission, where placeOrder passes a stable
+    // clientId so server-side dedupe works across retries.
     const payload = Object.assign(
       { action, client: CLIENT, passcode: state.passcode,
         clientId: freshRequestId(), deviceId: clientId() },
       body || {}
     );
-    const res = await fetch(ENDPOINT, {
-      method:'POST',
-      // text/plain avoids a CORS preflight against Apps Script.
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(payload),
-      redirect:'follow'
-    });
+    // Hard timeout so a hung Apps Script execution / dead network
+    // can't leave the UI on "Placing…" forever. 60s covers Apps
+    // Script cold starts with margin.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 60000);
+    let res;
+    try {
+      res = await fetch(ENDPOINT, {
+        method:'POST',
+        // text/plain avoids a CORS preflight against Apps Script.
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload),
+        redirect:'follow',
+        signal: ctrl.signal
+      });
+    } catch(e){
+      if (e && e.name === 'AbortError') throw new Error('Request timed out — please try again');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const txt = await res.text();
     try { return JSON.parse(txt); }
@@ -1614,13 +1633,6 @@
   // (The drop-off date now lives on the setup screen, so the cart
   // drawer no longer needs to react to date input changes — the banner
   // is set once when the drawer opens.)
-  document.addEventListener('input', (e) => {
-    if (false){
-      const banner = $('#edit-banner-host');
-      if (banner){ /* unused */ }
-      updateCartBadge();
-    }
-  });
 
   $('#cart-list').addEventListener('click', (e) => {
     const row = e.target.closest('.cart-item');
@@ -1748,7 +1760,19 @@
     // re-render), we still route to the update endpoint correctly.
     const editTarget = state.editingOrderId || null;
 
+    // Stable submission id: minted once per logical order and REUSED
+    // on every retry of the SAME submission (timeout → tap again).
+    // The server dedupes on it, so a retry of an order that actually
+    // landed can't create a duplicate. If the payload changes (user
+    // edited the cart between attempts), a fresh id is minted so the
+    // changed order isn't swallowed by the dedupe.
+    const submitKey = JSON.stringify([items, dropoffWhen, s.pickupWhen, address, jobName, editTarget]);
+    if (!state._submit || state._submit.key !== submitKey){
+      state._submit = { id: freshRequestId(), key: submitKey };
+    }
+
     const basePayload = {
+      clientId:       state._submit.id,           // overrides api()'s per-request UUID
       deviceId: clientId(),                       // long-term browser id (for traceability)
       placedBy:       state.placedBy,
       jobName,
@@ -1782,6 +1806,9 @@
         toast((res && res.error) || 'Order failed', true);
         return;
       }
+      // Success — clear the stable submission id so the NEXT order
+      // gets a fresh one.
+      state._submit = null;
       // Different success messages for edit-applied vs edit-request vs new.
       if (res.requiresApproval){
         toast('Edit request sent to the logistics team — order unchanged until we approve.');
